@@ -87,6 +87,8 @@ MainWindow::MainWindow(QWidget *parent)
         connect(m_connectionManager, &ConnectionManager::stateChanged, this, &MainWindow::stateChanged);
     }
 
+    setupIntervalSlider();
+
     ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) + "x" + QString::number(desktopRect.height()));
     ui->textTerminal->append("Press Connect Button");
     ui->pushConnect->setFocus();
@@ -237,6 +239,72 @@ bool MainWindow::isError(std::string msg) {
             return true;
     }
     return false;
+}
+
+void MainWindow::setupIntervalSlider()
+{
+    ui->intervalSlider->setMinimum(0);
+    ui->intervalSlider->setMaximum(100);
+    ui->intervalSlider->setSingleStep(5);
+    ui->intervalSlider->setTickInterval(5);
+    ui->intervalSlider->setTickPosition(QSlider::TicksBelow);
+
+    ui->labelInterval->setAlignment(Qt::AlignCenter);
+    ui->labelInterval->setStyleSheet(
+        "QLabel {"
+        "    font-size: 22px;"
+        "    font-weight: bold;"
+        "    color: #2196F3;"
+        "    padding: 3px;"
+        "    background-color: #F5F5F5;"
+        "    border-radius: 3px;"
+        "    margin: 3px;"
+        "}"
+        );
+
+    ui->intervalSlider->setMinimumHeight(60);  // Taller for touch
+    ui->intervalSlider->setStyleSheet(
+        "QSlider::groove:horizontal {"
+        "    border: none;"
+        "    height: 20px;"
+        "    background: #E0E0E0;"
+        "    border-radius: 5px;"
+        "    margin: 0px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "        stop:0 #2196F3, stop:1 #1976D2);"
+        "    border: none;"
+        "    width: 30px;"  // Wider handle for touch
+        "    margin: -5px 0;"
+        "    border-radius: 10px;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "    background: #2196F3;"
+        "    border-radius: 5px;"
+        "}"
+        "QSlider::add-page:horizontal {"
+        "    background: #E0E0E0;"
+        "    border-radius: 5px;"
+        "}"
+        "QSlider::tick-mark {"
+        "    background: #757575;"
+        "    width: 2px;"
+        "    height: 5px;"
+        "    margin-top: 5px;"
+        "}"
+        );
+
+    // Set initial value (convert your interval to 0-100 range)
+    int initialValue = 50;  // or whatever default you want
+    ui->intervalSlider->setValue(initialValue);
+
+    // Connect signal
+    connect(ui->intervalSlider, &QSlider::valueChanged,
+            this, &MainWindow::onIntervalSliderChanged);
+
+    // Initial label update
+    ui->labelInterval->setText(QString("Rate: %1 ms").arg(interval));
 }
 
 QString MainWindow::getData(const QString &command)
@@ -430,6 +498,12 @@ void MainWindow::onScanClicked()
     ObdScan *obdScan = new ObdScan(this);
     //obdScan->setGeometry(desktopRect);
     obdScan->show();
+}
+
+void MainWindow::onIntervalSliderChanged(int value)
+{
+    interval = value * 10;  // This will give you 0-1000 ms range
+    ui->labelInterval->setText(QString("Interval: %1 ms").arg(interval));
 }
 
 void MainWindow::onSearchPidsStateChanged(int state)

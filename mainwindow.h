@@ -39,6 +39,7 @@ private slots:
     void onReadFaultClicked();
     void onClearFaultClicked();
     void onScanClicked();
+    void onIntervalSliderChanged(int value);
     void onExitClicked();
     void onSearchPidsStateChanged(int state);
 
@@ -48,6 +49,7 @@ private:
     QString getData(const QString &);
     void analysData(const QString &);
     bool isError(std::string msg);
+    void setupIntervalSlider();
 
     ConnectionManager *m_connectionManager{};
     SettingsManager *m_settingsManager{};
