@@ -1,9 +1,10 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "obdscan.h"
 
 #include "global.h"
 QStringList runtimeCommands = {};  // initialize
-int interval = 500;
+int interval = 200;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -12,7 +13,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     QScreen *screen = window()->screen();
-    QRect desktopRect = screen->availableGeometry();
+    desktopRect = screen->availableGeometry();
 
     ui->textTerminal->setStyleSheet("font: 20pt; color: #00cccc; background-color: #001a1a;");
     ui->pushConnect->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color:#154360; padding: 3px; spacing: 3px;");
@@ -23,6 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->pushClear->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360; padding: 3px; spacing: 3px;");
     ui->pushReadFault->setStyleSheet("font-size: 24pt; font-weight: bold; color: white; background-color: #0B5345; padding: 3px; spacing: 3px;");
     ui->pushClearFault->setStyleSheet("font-size: 24pt; font-weight: bold; color: white; background-color: #0B5345; padding: 3px; spacing: 3px;");
+    ui->pushScan->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360 ; padding: 6px; spacing: 6px;");
     ui->pushExit->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #512E5F; padding: 3px; spacing: 3px;");
     ui->checkSearchPids->setStyleSheet(
         "QCheckBox {"
@@ -60,7 +62,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushGetProtocol, &QPushButton::clicked, this, &MainWindow::onGetProtocolClicked);
     connect(ui->pushClear, &QPushButton::clicked, this, &MainWindow::onClearClicked);
     connect(ui->pushReadFault, &QPushButton::clicked, this, &MainWindow::onReadFaultClicked);
-    connect(ui->pushClearFault, &QPushButton::clicked, this, &MainWindow::onClearFaultClicked);   
+    connect(ui->pushClearFault, &QPushButton::clicked, this, &MainWindow::onClearFaultClicked);
+    connect(ui->pushScan, &QPushButton::clicked, this, &MainWindow::onScanClicked);
     connect(ui->pushExit, &QPushButton::clicked, this, &MainWindow::onExitClicked);
     connect(ui->checkSearchPids, &QCheckBox::stateChanged, this, &MainWindow::onSearchPidsStateChanged);
 
@@ -259,7 +262,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    QString ip = "192.168.0.10";
+    //QString ip = "192.168.0.10";
+    QString ip = "192.168.1.16";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
@@ -421,6 +425,14 @@ void MainWindow::onClearFaultClicked()
     ui->textTerminal->append("-> Clearing the trouble codes.");
     QThread::msleep(60);
     send(CLEAR_TROUBLE);
+}
+
+void MainWindow::onScanClicked()
+{
+    ObdScan *obdScan = new ObdScan(this);
+    obdScan->setGeometry(desktopRect);
+    obdScan->move(this->x(), this->y());
+    obdScan->show();
 }
 
 void MainWindow::onSearchPidsStateChanged(int state)

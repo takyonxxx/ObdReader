@@ -38,6 +38,7 @@ private slots:
     void onClearClicked();
     void onReadFaultClicked();
     void onClearFaultClicked();
+    void onScanClicked();
     void onExitClicked();
     void onSearchPidsStateChanged(int state);
 
@@ -57,6 +58,7 @@ private:
     bool m_initialized{false};
     bool m_reading{false};
     bool m_searchPidsEnable{false};
+    QRect desktopRect;
     std::vector<uint32_t> cmds{};
 
     Ui::MainWindow *ui;

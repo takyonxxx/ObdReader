@@ -14,6 +14,7 @@ SOURCES += \
     elmtcpsocket.cpp \
     main.cpp \
     mainwindow.cpp \
+    obdscan.cpp \
     settingsmanager.cpp
 
 HEADERS += \
@@ -22,10 +23,12 @@ HEADERS += \
     elmtcpsocket.h \
     global.h \
     mainwindow.h \
+    obdscan.h \
     settingsmanager.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    obdscan.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
@@ -36,3 +39,6 @@ contains(ANDROID_TARGET_ARCH,armeabi-v7a) {
     ANDROID_PACKAGE_SOURCE_DIR = \
         $$PWD/android
 }
+
+#simulator https://github.com/Ircama/ELM327-emulator/releases
+#elm -n 35000 -s car
