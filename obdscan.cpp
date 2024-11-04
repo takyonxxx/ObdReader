@@ -12,23 +12,23 @@ ObdScan::ObdScan(QWidget *parent) :
 
     setWindowTitle("Elm327 Obd2");
 
-    ui->labelRpmTitle->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelRpm->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelLoadTitle->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelLoad->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelMapTitle->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelMap->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelMafTitle->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelMaf->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelCoolantTitle->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelCoolant->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelRpmTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
+    ui->labelRpm->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelLoadTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
+    ui->labelLoad->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelMapTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
+    ui->labelMap->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelMafTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
+    ui->labelMaf->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelCoolantTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
+    ui->labelCoolant->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
     ui->labelFuelConsumption->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
     ui->labelAvgConsumption->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelVoltage->setStyleSheet("font-size: 36pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelVoltage->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
     ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");    
-    ui->labelCommand->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    ui->labelCommand->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
 
-    ui->pushExit->setStyleSheet("font-size: 22pt; font-weight: bold; color: #ECF0F1; background-color: #512E5F; padding: 3px; spacing: 3px;");
+    ui->pushExit->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #512E5F; padding: 3px; spacing: 3px;");
 
     runtimeCommands.clear();
 

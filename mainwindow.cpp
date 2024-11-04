@@ -4,7 +4,7 @@
 
 #include "global.h"
 QStringList runtimeCommands = {};  // initialize
-int interval = 200;
+int interval = 500;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -111,10 +111,8 @@ MainWindow::~MainWindow()
 
 
 void MainWindow::connected()
-{
-    ui->pushConnect->setStyleSheet("font-size: 22pt; font-weight: bold; color: white;background-color:#154360; padding: 24px; spacing: 24px;");
+{    
     ui->pushConnect->setText(QString("Disconnect"));
-
     commandOrder = 0;
     m_initialized = false;
     m_connected = true;
@@ -262,8 +260,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    //QString ip = "192.168.0.10";
-    QString ip = "192.168.1.16";
+    QString ip = "192.168.0.10";
+    //QString ip = "192.168.1.16";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
@@ -430,8 +428,7 @@ void MainWindow::onClearFaultClicked()
 void MainWindow::onScanClicked()
 {
     ObdScan *obdScan = new ObdScan(this);
-    obdScan->setGeometry(desktopRect);
-    obdScan->move(this->x(), this->y());
+    //obdScan->setGeometry(desktopRect);
     obdScan->show();
 }
 
