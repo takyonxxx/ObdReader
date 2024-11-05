@@ -4,7 +4,7 @@
 
 #include "global.h"
 QStringList runtimeCommands = {};  // initialize
-int interval = 100;
+int interval = 10;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -402,7 +402,7 @@ QString MainWindow::getData(const QString &command)
         return "error";
     }
 
-    dataReceived = cleanData(dataReceived);
+    //dataReceived = cleanData(dataReceived);
     return dataReceived;
 }
 
@@ -421,63 +421,99 @@ void MainWindow::saveSettings()
 
 void MainWindow::analysData(const QString &dataReceived)
 {
-    unsigned A = 0;
-    unsigned B = 0;
-    unsigned PID = 0;
+    // Use uint8_t for OBD byte values
+    uint8_t A = 0;
+    uint8_t B = 0;
+    uint8_t PID = 0;
 
     std::vector<QString> vec;
-    auto resp= elm->prepareResponseToDecode(dataReceived);
+    auto resp = elm->prepareResponseToDecode(dataReceived);
 
-    if(resp.size()>2 && !resp[0].compare("41",Qt::CaseInsensitive))
+    // Handle standard PID responses (41 XX ...)
+    if(resp.size() > 2 && !resp[0].compare("41", Qt::CaseInsensitive))
     {
+        // Validate PID format
         QRegularExpression hexMatcher("^[0-9A-F]{2}$", QRegularExpression::CaseInsensitiveOption);
         QRegularExpressionMatch match = hexMatcher.match(resp[1]);
         if (!match.hasMatch())
             return;
 
-        PID =std::stoi(resp[1].toStdString(),nullptr,16);
-        std::vector<QString> vec;
+        try {
+            // Safe conversion of PID with range check
+            unsigned long pidTemp = std::stoul(resp[1].toStdString(), nullptr, 16);
+            if (pidTemp > 0xFF) {
+                return;  // Invalid PID value
+            }
+            PID = static_cast<uint8_t>(pidTemp);
 
-        vec.insert(vec.begin(),resp.begin()+2, resp.end());
-        if(vec.size()>=2)
-        {
-            A = std::stoi(vec[0].toStdString(),nullptr,16);
-            B = std::stoi(vec[1].toStdString(),nullptr,16);
-        }
-        else if(vec.size()>=1)
-        {
-            A = std::stoi(vec[0].toStdString(),nullptr,16);
-            B = 0;
-        }
+            vec.clear();  // Clear vector before inserting new data
+            vec.insert(vec.begin(), resp.begin() + 2, resp.end());
 
-        //ui->textTerminal->append("Pid: " + QString::number(PID) + "  A: " + QString::number(A)+ "  B: " + QString::number(B));
+            if(vec.size() >= 2)
+            {
+                // Safe conversion of A and B with range checks
+                unsigned long aTemp = std::stoul(vec[0].toStdString(), nullptr, 16);
+                unsigned long bTemp = std::stoul(vec[1].toStdString(), nullptr, 16);
+
+                if (aTemp <= 0xFF && bTemp <= 0xFF) {
+                    A = static_cast<uint8_t>(aTemp);
+                    B = static_cast<uint8_t>(bTemp);
+                } else {
+                    return;  // Invalid A or B values
+                }
+            }
+            else if(vec.size() >= 1)
+            {
+                // Safe conversion of A with range check
+                unsigned long aTemp = std::stoul(vec[0].toStdString(), nullptr, 16);
+                if (aTemp <= 0xFF) {
+                    A = static_cast<uint8_t>(aTemp);
+                    B = 0;
+                } else {
+                    return;  // Invalid A value
+                }
+            }
+            ui->textTerminal->append("Pid: " + QString::number(PID) + "  A: " + QString::number(A) + "  B: " + QString::number(B));
+        }
+        catch (const std::exception& e) {
+            ui->textTerminal->append("Error parsing data: " + QString(e.what()));
+            return;
+        }
     }
 
-    //number of dtc & mil
-    if(resp.size()>2 && !resp[0].compare("41",Qt::CaseInsensitive) && !resp[1].compare("01",Qt::CaseInsensitive))
+    // Handle Mode 01 PID 01 (number of DTCs and MIL status)
+    if(resp.size() > 2 && !resp[0].compare("41", Qt::CaseInsensitive) &&
+        !resp[1].compare("01", Qt::CaseInsensitive))
     {
-        vec.insert(vec.begin(),resp.begin()+2, resp.end());
-        std::pair<int,bool> dtcNumber = elm->decodeNumberOfDtc(vec);
+        vec.clear();  // Clear vector before inserting new data
+        vec.insert(vec.begin(), resp.begin() + 2, resp.end());
+
+        std::pair<int, bool> dtcNumber = elm->decodeNumberOfDtc(vec);
         QString milText = dtcNumber.second ? "true" : "false";
-        ui->textTerminal->append("Number of Dtcs: " +  QString::number(dtcNumber.first) + ",  Mil on: " + milText);
+        ui->textTerminal->append("Number of DTCs: " + QString::number(dtcNumber.first) +
+                                 ", MIL on: " + milText);
     }
-    //dtc codes
-    if(resp.size()>1 && !resp[0].compare("43",Qt::CaseInsensitive))
+
+    // Handle Mode 03 (DTC codes)
+    if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive))
     {
-        //auto resp= elm->prepareResponseToDecode("486B104303000302030314486B10430304000000000D");
-        vec.insert(vec.begin(),resp.begin()+1, resp.end());
-        std::vector<QString> dtcCodes( elm->decodeDTC(vec));
-        if(dtcCodes.size()>0)
+        vec.clear();  // Clear vector before inserting new data
+        vec.insert(vec.begin(), resp.begin() + 1, resp.end());
+
+        std::vector<QString> dtcCodes = elm->decodeDTC(vec);
+        if(!dtcCodes.empty())
         {
-            QString dtc_list{"Dtcs: "};
-            for(auto &code : dtcCodes)
+            QString dtc_list = "DTCs: ";
+            for(const auto &code : dtcCodes)
             {
                 dtc_list.append(code + " ");
             }
             ui->textTerminal->append(dtc_list);
         }
         else
-            ui->textTerminal->append("Number of Dtcs: 0");
+        {
+            ui->textTerminal->append("Number of DTCs: 0");
+        }
     }
 }
 
@@ -513,8 +549,18 @@ void MainWindow::onReadClicked()
 
     m_reading = true;
     QString command = ui->sendEdit->text();
-    auto dataReceived = getData(command);
-    ui->textTerminal->append("<- " + dataReceived);
+    auto data = getData(command);
+
+    if(isError(data.toUpper().toStdString()))
+    {
+        ui->textTerminal->append("Error : " + data);
+    }
+    else if (!data.isEmpty())
+    {
+        ui->textTerminal->append("<- " + data);
+    }
+
+    analysData(data);
     m_reading = false;
 }
 

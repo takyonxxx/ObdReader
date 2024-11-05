@@ -17,6 +17,8 @@ ObdScan::ObdScan(QWidget *parent) :
         "}"
         );
 
+    setMaximumHeight(720);
+
     applyStyles();
     setupInitialValues();
 
@@ -34,8 +36,6 @@ ObdScan::ObdScan(QWidget *parent) :
         runtimeCommands.append(INTAKE_AIR_TEMP);
         runtimeCommands.append(MAF_AIR_FLOW);
     }
-
-    runtimeCommands.append(VOLTAGE);
 
     // Debug remaining commands
     qDebug() << "\nCurrent runtime commands:";
@@ -65,9 +65,6 @@ void ObdScan::setupInitialValues()
 {
     connect(ui->pushClear, &QPushButton::clicked, this, &ObdScan::onClearClicked);
     connect(ui->pushExit, &QPushButton::clicked, this, &ObdScan::onExitClicked);
-
-    // Set initial values
-    ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");
 
     // Initialize other default values as needed
     ui->labelRpm->setText("0 RPM");
@@ -165,7 +162,7 @@ void ObdScan::applyStyles()
 
     // Apply large display styles
     QList<QLabel*> largeDisplays = {
-        ui->labelFuelConsumption, ui->labelAvgConsumption, ui->labelVoltage
+         ui->labelAvgConsumption
     };
     for (QLabel* label : largeDisplays) {
         label->setStyleSheet(largeDisplayStyle);
@@ -305,9 +302,6 @@ void ObdScan::onClearClicked()
     mFuelConsumptionPer100.clear();
     mFuelConsumption.clear();
 
-    // Set initial values
-    ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");
-
     // Initialize other default values as needed
     ui->labelRpm->setText("0 RPM");
     ui->labelLoad->setText("0 %");
@@ -318,33 +312,34 @@ void ObdScan::onClearClicked()
 
 void ObdScan::analysData(const QString &dataReceived)
 {
-    unsigned A = 0;
-    unsigned B = 0;
-    unsigned PID = 0;
+    uint8_t A = 0;
+    uint8_t B = 0;
+    uint8_t PID = 0;
     double value = 0;
 
     std::vector<QString> vec;
-    auto resp= elm->prepareResponseToDecode(dataReceived);
+    auto resp = elm->prepareResponseToDecode(dataReceived);
 
-    if(resp.size()>2 && !resp[0].compare("41",Qt::CaseInsensitive))
+    if(resp.size() > 2 && !resp[0].compare("41", Qt::CaseInsensitive))
     {
         QRegularExpression hexMatcher("^[0-9A-F]{2}$", QRegularExpression::CaseInsensitiveOption);
         QRegularExpressionMatch match = hexMatcher.match(resp[1]);
         if (!match.hasMatch())
             return;
 
-        PID =std::stoi(resp[1].toStdString(),nullptr,16);
-        std::vector<QString> vec;
+        // Limit PID to byte size
+        PID = static_cast<uint8_t>(std::stoi(resp[1].toStdString(), nullptr, 16) & 0xFF);
 
-        vec.insert(vec.begin(),resp.begin()+2, resp.end());
-        if(vec.size()>=2)
+        vec.insert(vec.begin(), resp.begin()+2, resp.end());
+        if(vec.size() >= 2)
         {
-            A = std::stoi(vec[0].toStdString(),nullptr,16);
-            B = std::stoi(vec[1].toStdString(),nullptr,16);
+            // Limit A and B to byte size
+            A = static_cast<uint8_t>(std::stoi(vec[0].toStdString(), nullptr, 16) & 0xFF);
+            B = static_cast<uint8_t>(std::stoi(vec[1].toStdString(), nullptr, 16) & 0xFF);
         }
-        else if(vec.size()>=1)
+        else if(vec.size() >= 1)
         {
-            A = std::stoi(vec[0].toStdString(),nullptr,16);
+            A = static_cast<uint8_t>(std::stoi(vec[0].toStdString(), nullptr, 16) & 0xFF);
             B = 0;
         }
 
@@ -400,12 +395,22 @@ void ObdScan::analysData(const QString &dataReceived)
             m_speed = value;
             //ui->labelSpeed->setText(QString::number(value) + " km/h");
             break;
-        case 15://PID(0F): Intake Air Temperature
-            // A - 40
-            value = A - 40;
-            air_temp = value;
-            ui->labelTemp->setText(QString::number(value, 'f', 0) + " C°");
+        case 15: //PID(0F): Intake Air Temperature
+        {
+            // Convert to signed int16_t before subtraction
+            int16_t temp = static_cast<int16_t>(A) - 40;
+
+            // Validate temperature range (-40°C to 215°C)
+            if (temp >= -40 && temp <= 215) {
+                value = temp;
+                air_temp = value;
+                ui->labelTemp->setText(QString::number(value, 'f', 0) + " C°");
+            } else {
+                // Handle invalid temperature
+                ui->labelTemp->setText("Error");
+            }
             break;
+        }
         case 16://PID(10): MAF air flow rate grams/sec
         {
             value = ((256*A)+B) / 100;  // MAF in g/s
@@ -435,20 +440,13 @@ void ObdScan::analysData(const QString &dataReceived)
             double avgConsumption100km = calculateAverageFuelConsumption(mFuelConsumptionPer100);
 
             // Display both metrics
-            QString displayText;
-            if (m_speed < 5.0) {
-                displayText = QString("Idle: %1 L/h")
+            QString avgHourText = QString("%1 L/h")
                                   .arg(avgConsumptionLh, 0, 'f', 1);
-            } else {
-                displayText = QString("%1 L/100km")
-                                  .arg(consumption100km, 0, 'f', 1);
-            }
-            ui->labelFuelConsumption->setText(displayText);
 
             // Display averages
-            QString avgText = QString("Avg: %1 L/100km")
+            QString avg100kmText = QString("%1 L/100km")
                                   .arg(avgConsumption100km, 0, 'f', 1);
-            ui->labelAvgConsumption->setText(avgText);
+            ui->labelAvgConsumption->setText(avgHourText + "  -  " + avg100kmText);
         }
             break;
         case 17://PID(11): Throttle position
@@ -525,7 +523,7 @@ void ObdScan::analysData(const QString &dataReceived)
         voltData.remove("ATRV").remove("atrv");
         if(voltData.length() > 3)
         {
-            ui->labelVoltage->setText(voltData.mid(0,2) + "." + voltData.mid(2,1) + " V");
+            //ui->labelVoltage->setText(voltData.mid(0,2) + "." + voltData.mid(2,1) + " V");
         }
     }
 }
