@@ -59,21 +59,46 @@ void ObdScan::removeCommand(const QString& commandToRemove)
 
 void ObdScan::setupInitialValues()
 {
+    connect(ui->pushClear, &QPushButton::clicked, this, &ObdScan::onClearClicked);
+    connect(ui->pushExit, &QPushButton::clicked, this, &ObdScan::onExitClicked);
+
     // Set initial values
     ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");
 
     // Initialize other default values as needed
     ui->labelRpm->setText("0 RPM");
     ui->labelLoad->setText("0 %");
-    ui->labelMap->setText("0 kPa");
+    ui->labelMap->setText("0 PSI");
     ui->labelMaf->setText("0 g/s");
     ui->labelCoolant->setText("0 °C");
 }
 
 void ObdScan::applyStyles()
 {
-    const QString ACCENT_COLOR = "#F38BA8";       // Pink
+    const QString PRIMARY_COLOR = "#89B4FA";      // Light blue
+    const QString SECONDARY_COLOR = "#313244";    // Dark gray
+    const QString SUCCESS_COLOR = "#A6E3A1";      // Green
     const QString TEXT_COLOR = "#CDD6F4";         // Light gray
+
+    const QString buttonBaseStyle = QString(
+                                        "QPushButton {"
+                                        "    font-size: 22pt;"
+                                        "    font-weight: bold;"
+                                        "    color: %1;"                          // TEXT_COLOR
+                                        "    background-color: %2;"               // SECONDARY_COLOR
+                                        "    border-radius: 8px;"
+                                        "    padding: 6px 10px;"
+                                        "    margin: 4px;"
+                                        "}"
+                                        "QPushButton:hover {"
+                                        "    background-color: %3;"               // PRIMARY_COLOR
+                                        "    color: #1E1E2E;"
+                                        "}"
+                                        "QPushButton:pressed {"
+                                        "    background-color: %4;"               // Darker version
+                                        "    padding: 14px 18px;"
+                                        "}"
+                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#7497D3");
 
     // Common styles for title labels
     const QString titleStyle = QString(
@@ -142,20 +167,8 @@ void ObdScan::applyStyles()
     }
 
     // Style for Exit button
-    ui->pushExit->setStyleSheet(QString(
-                                    "QPushButton {"
-                                    "    font-size: 22pt;"
-                                    "    font-weight: bold;"
-                                    "    color: %1;"
-                                    "    background-color: %2;"
-                                    "    border-radius: 8px;"
-                                    "    padding: 6px 10px;"
-                                    "}"
-                                    "QPushButton:hover {"
-                                    "    background-color: #F38BA8;"
-                                    "    color: #1E1E2E;"
-                                    "}"
-                                    ).arg(TEXT_COLOR, ACCENT_COLOR));
+    ui->pushExit->setStyleSheet(buttonBaseStyle);
+    ui->pushClear->setStyleSheet(buttonBaseStyle);
 }
 
 void ObdScan::startQueue()
@@ -178,7 +191,7 @@ void ObdScan::closeEvent (QCloseEvent *event)
     stopQueue();
 }
 
-void ObdScan::on_pushExit_clicked()
+void ObdScan::onExitClicked()
 {
     mRunning = false;
     close();
@@ -282,6 +295,22 @@ void ObdScan::dataReceived(QString dataReceived)
 
 }
 
+void ObdScan::onClearClicked()
+{
+    mFuelConsumptionPer100.clear();
+    mFuelConsumption.clear();
+
+    // Set initial values
+    ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");
+
+    // Initialize other default values as needed
+    ui->labelRpm->setText("0 RPM");
+    ui->labelLoad->setText("0 %");
+    ui->labelMap->setText("0 PSI");
+    ui->labelMaf->setText("0 g/s");
+    ui->labelCoolant->setText("0 °C");
+}
+
 void ObdScan::analysData(const QString &dataReceived)
 {
     unsigned A = 0;
@@ -334,7 +363,7 @@ void ObdScan::analysData(const QString &dataReceived)
         case 11://PID(0B): Manifold Absolute Pressure
         {
             // A represents pressure in kPa
-            double value = A;
+            value = A;
 
             // Default atmospheric pressure if not set (14.7 PSI = 101.325 kPa)
             if (barometric_pressure == 0.0) {
@@ -358,7 +387,7 @@ void ObdScan::analysData(const QString &dataReceived)
         case 12: //PID(0C): RPM
             //((A*256)+B)/4
             value = ((A * 256) + B) / 4;
-            ui->labelRpm->setText(QString::number(value) + " rpm");
+            ui->labelRpm->setText(QString::number(value) + " RPM");
             break;
         case 13://PID(0D): KM Speed
             // A
@@ -386,9 +415,9 @@ void ObdScan::analysData(const QString &dataReceived)
                 mFuelConsumptionPer100.append(consumption100km);
 
                 // Keep last 100 values
-                if (mFuelConsumptionPer100.size() > 100) {
-                    mFuelConsumptionPer100.removeFirst();
-                }
+                // if (mFuelConsumptionPer100.size() > 100) {
+                //     mFuelConsumptionPer100.removeFirst();
+                // }
             }
 
             // Calculate averages
@@ -399,14 +428,14 @@ void ObdScan::analysData(const QString &dataReceived)
             QString displayText;
             if (m_speed < 5.0) {
                 displayText = QString("Idle: %1 L/h")
-                                  .arg(fuelConsumption, 0, 'f', 1);
+                                  .arg(avgConsumptionLh, 0, 'f', 1);
             } else {
                 displayText = QString("%1 L/100km")
                                   .arg(consumption100km, 0, 'f', 1);
             }
             ui->labelFuelConsumption->setText(displayText);
 
-            // Optional: Display averages
+            // Display averages
             QString avgText = QString("Avg: %1 L/100km")
                                   .arg(avgConsumption100km, 0, 'f', 1);
             ui->labelAvgConsumption->setText(avgText);
@@ -452,20 +481,20 @@ void ObdScan::analysData(const QString &dataReceived)
         case 94:  // PID(5E) Fuel rate
         {
             // ((A*256)+B) / 20
-            double value = ((A*256.0)+B) / 20.0;  // Using doubles for precision
+            value = ((A*256.0)+B) / 20.0;  // Using doubles for precision
 
             // Optional: Add validation
-            if (value >= 0.0 && value < 1000.0) {  // Reasonable range check
-                mFuelConsumption.append(value);
+            // if (value >= 0.0 && value < 1000.0) {  // Reasonable range check
+            //     mFuelConsumption.append(value);
 
-                // Optional: Limit the number of stored values to prevent memory growth
-                if (mFuelConsumption.size() > 100) {  // Keep last 100 values
-                    mFuelConsumption.removeFirst();
-                }
+            //     // Optional: Limit the number of stored values to prevent memory growth
+            //     if (mFuelConsumption.size() > 100) {  // Keep last 100 values
+            //         mFuelConsumption.removeFirst();
+            //     }
 
-                double average = calculateAverageFuelConsumption(mFuelConsumption);
-                ui->labelFuelConsumption->setText(QString::number(average, 'f', 1) + " l/h");
-            }
+            //     double average = calculateAverageFuelConsumption(mFuelConsumption);
+            //     ui->labelFuelConsumption->setText(QString::number(average, 'f', 1) + " l/h");
+            // }
         }
             break;
         case 98://PID(62) Actual engine - percent torque

@@ -42,3 +42,20 @@ contains(ANDROID_TARGET_ARCH,armeabi-v7a) {
 
 #simulator https://github.com/Ircama/ELM327-emulator/releases
 #elm -n 35000 -s car
+
+DISTFILES += \
+    android/AndroidManifest.xml \
+    android/build.gradle \
+    android/gradle.properties \
+    android/gradle/wrapper/gradle-wrapper.jar \
+    android/gradle/wrapper/gradle-wrapper.properties \
+    android/gradlew \
+    android/gradlew.bat \
+    android/res/drawable-hdpi/icon.png \
+    android/res/drawable-ldpi/icon.png \
+    android/res/drawable-mdpi/icon.png \
+    android/res/drawable-xhdpi/icon.png \
+    android/res/drawable-xxhdpi/icon.png \
+    android/res/drawable-xxxhdpi/icon.png \
+    android/res/values/libs.xml \
+    android/res/xml/qtprovider_paths.xml

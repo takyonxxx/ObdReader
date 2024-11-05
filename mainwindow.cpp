@@ -4,7 +4,7 @@
 
 #include "global.h"
 QStringList runtimeCommands = {};  // initialize
-int interval = 500;
+int interval = 100;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -87,8 +87,7 @@ void MainWindow::applyStyles()
 {
     // Common style variables
     const QString PRIMARY_COLOR = "#89B4FA";      // Light blue
-    const QString SECONDARY_COLOR = "#313244";    // Dark gray
-    const QString ACCENT_COLOR = "#F38BA8";       // Pink
+    const QString SECONDARY_COLOR = "#313244";    // Dark gray    
     const QString SUCCESS_COLOR = "#A6E3A1";      // Green
     const QString TEXT_COLOR = "#CDD6F4";         // Light gray
 
@@ -129,54 +128,20 @@ void MainWindow::applyStyles()
     QList<QPushButton*> standardButtons = {
         ui->pushConnect, ui->pushSend, ui->pushRead,
         ui->pushSetProtocol, ui->pushGetProtocol, ui->pushClear,
-        ui->pushScan
+        ui->pushScan, ui->pushReadFault, ui->pushClearFault, ui->pushExit
     };
     for (auto* button : standardButtons) {
         button->setStyleSheet(buttonBaseStyle);
     }
 
-    // Fault-related buttons with special color
-    const QString faultButtonStyle = buttonBaseStyle;
-    ui->pushReadFault->setStyleSheet(QString(
-                                         "QPushButton {"
-                                         "    font-size: 22pt;"
-                                         "    font-weight: bold;"
-                                         "    color: %1;"
-                                         "    background-color: #45475A;"          // Different background
-                                         "    border-radius: 8px;"
-                                         "    padding: 6px 10px;"
-                                         "}"
-                                         "QPushButton:hover {"
-                                         "    background-color: %2;"
-                                         "    color: #1E1E2E;"
-                                         "}"
-                                         ).arg(TEXT_COLOR, SUCCESS_COLOR));
-    ui->pushClearFault->setStyleSheet(faultButtonStyle);
-
-    // Exit button with warning color
-    ui->pushExit->setStyleSheet(QString(
-                                    "QPushButton {"
-                                    "    font-size: 22pt;"
-                                    "    font-weight: bold;"
-                                    "    color: %1;"
-                                    "    background-color: %2;"
-                                    "    border-radius: 8px;"
-                                    "    padding: 6px 10px;"
-                                    "}"
-                                    "QPushButton:hover {"
-                                    "    background-color: #F38BA8;"
-                                    "    color: #1E1E2E;"
-                                    "}"
-                                    ).arg(TEXT_COLOR, ACCENT_COLOR));
-
     // Checkbox style
     ui->checkSearchPids->setStyleSheet(QString(
                                            "QCheckBox {"
-                                           "    font-size: 24pt;"
+                                           "    font-size: 22pt;"
                                            "    font-weight: bold;"
                                            "    color: %1;"
-                                           "    padding: 8px;"
-                                           "    spacing: 12px;"
+                                           "    padding: 3px;"
+                                           "    spacing: 6px;"
                                            "}"
                                            "QCheckBox::indicator {"
                                            "    width: 28px;"
@@ -357,7 +322,7 @@ bool MainWindow::isError(std::string msg) {
 
 void MainWindow::setupIntervalSlider()
 {
-    ui->intervalSlider->setMinimum(0);
+    ui->intervalSlider->setMinimum(1);
     ui->intervalSlider->setMaximum(100);
     ui->intervalSlider->setSingleStep(5);
     ui->intervalSlider->setTickInterval(5);
@@ -366,17 +331,17 @@ void MainWindow::setupIntervalSlider()
     ui->labelInterval->setAlignment(Qt::AlignCenter);
     ui->labelInterval->setStyleSheet(
         "QLabel {"
-        "    font-size: 22px;"
+        "    font-size: 28px;"
         "    font-weight: bold;"
         "    color: #2196F3;"
         "    padding: 3px;"
-        "    background-color: #F5F5F5;"
+        "    background-color:#313244;"
         "    border-radius: 3px;"
         "    margin: 3px;"
         "}"
         );
 
-    ui->intervalSlider->setMinimumHeight(60);  // Taller for touch
+    ui->intervalSlider->setMinimumHeight(50);  // Taller for touch
     ui->intervalSlider->setStyleSheet(
         "QSlider::groove:horizontal {"
         "    border: none;"
@@ -410,7 +375,7 @@ void MainWindow::setupIntervalSlider()
         );
 
     // Set initial value (convert your interval to 0-100 range)
-    int initialValue = 50;  // or whatever default you want
+    int initialValue = 10;  // or whatever default you want
     ui->intervalSlider->setValue(initialValue);
 
     // Connect signal
@@ -442,8 +407,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    //QString ip = "192.168.0.10";
-    QString ip = "192.168.1.16";
+    QString ip = "192.168.0.10";
+    //QString ip = "192.168.1.16";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
@@ -584,7 +549,13 @@ void MainWindow::onGetProtocolClicked()
 void MainWindow::onClearClicked()
 {
     saveSettings();
+    runtimeCommands.clear();
+
     ui->textTerminal->clear();
+    if(m_settingsManager)
+    {
+        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " + QString::number(m_settingsManager->getWifiPort()));
+    }
 }
 
 void MainWindow::onReadFaultClicked()

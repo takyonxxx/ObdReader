@@ -60,7 +60,8 @@ public slots:
     void dataReceived(QString);
 
 private slots:
-    void on_pushExit_clicked();
+    void onClearClicked();
+    void onExitClicked();
 
 protected:
     void closeEvent (QCloseEvent *) override;
