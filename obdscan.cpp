@@ -8,33 +8,23 @@ ObdScan::ObdScan(QWidget *parent) :
     ui(new Ui::ObdScan)
 {
     ui->setupUi(this);
-    this->centralWidget()->setStyleSheet("background-color:#17202A ; border: none;");
 
-    setWindowTitle("Elm327 Obd2");
+    setWindowTitle("ELM327 OBD-II Diagnostic Scanner");
+    this->centralWidget()->setStyleSheet(
+        "QWidget {"
+        "   background-color: #1E1E2E;"    // Dark theme background
+        "   border: none;"
+        "}"
+        );
 
-    ui->labelRpmTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelRpm->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelLoadTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelLoad->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelMapTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelMap->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelMafTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelMaf->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelCoolantTitle->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; padding: 3px; spacing: 3px;");
-    ui->labelCoolant->setStyleSheet("font-size: 24pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelFuelConsumption->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelAvgConsumption->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelVoltage->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
-    ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");    
-    ui->labelCommand->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #154360 ; padding: 3px; spacing: 3px;");
+    applyStyles();
+    setupInitialValues();
 
-    ui->pushExit->setStyleSheet("font-size: 32pt; font-weight: bold; color: #ECF0F1; background-color: #512E5F; padding: 3px; spacing: 3px;");
-
-    runtimeCommands.clear();
+    runtimeCommands.append(VOLTAGE);
+    removeCommand("0100");
 
     if(runtimeCommands.isEmpty())
-    {
-        runtimeCommands.append(VOLTAGE);
+    {       
         runtimeCommands.append(VEHICLE_SPEED);
         runtimeCommands.append(ENGINE_RPM);
         runtimeCommands.append(ENGINE_LOAD);
@@ -43,12 +33,129 @@ ObdScan::ObdScan(QWidget *parent) :
         runtimeCommands.append(MAF_AIR_FLOW);
     }
 
-     startQueue();
+    // Debug remaining commands
+    qDebug() << "\nCurrent runtime commands:";
+    for (const auto& cmd : runtimeCommands) {
+        qDebug() << " -" << cmd;
+    }
+
+    startQueue();
 }
 
 ObdScan::~ObdScan()
 {
     delete ui;
+}
+
+void ObdScan::removeCommand(const QString& commandToRemove)
+{
+    // Check if command exists before removing
+    if (runtimeCommands.contains(commandToRemove)) {
+        runtimeCommands.removeAll(commandToRemove);
+    } else {
+        qDebug() << "Command not found in runtime commands:" << commandToRemove;
+    }
+}
+
+void ObdScan::setupInitialValues()
+{
+    // Set initial values
+    ui->labelVoltage->setText(QString::number(0, 'f', 1) + " V");
+
+    // Initialize other default values as needed
+    ui->labelRpm->setText("0 RPM");
+    ui->labelLoad->setText("0 %");
+    ui->labelMap->setText("0 kPa");
+    ui->labelMaf->setText("0 g/s");
+    ui->labelCoolant->setText("0 °C");
+}
+
+void ObdScan::applyStyles()
+{
+    const QString ACCENT_COLOR = "#F38BA8";       // Pink
+    const QString TEXT_COLOR = "#CDD6F4";         // Light gray
+
+    // Common styles for title labels
+    const QString titleStyle = QString(
+        "QLabel {"
+        "   font-size: 24pt;"
+        "   font-weight: bold;"
+        "   color: #CDD6F4;"              // Light text for contrast
+        "   padding: 10px;"
+        "   border-radius: 5px;"
+        "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+        "               stop:0 #45475A, stop:1 #585B70);"  // Gradient background
+        "}"
+        );
+
+    // Common styles for value labels
+    const QString valueStyle = QString(
+        "QLabel {"
+        "   font-size: 24pt;"
+        "   font-weight: bold;"
+        "   color: #CDD6F4;"
+        "   padding: 10px;"
+        "   border-radius: 5px;"
+        "   background-color: #313244;"    // Slightly lighter than background
+        "   border: 1px solid #45475A;"    // Subtle border
+        "}"
+        );
+
+    // Special styles for larger displays
+    const QString largeDisplayStyle = QString(
+        "QLabel {"
+        "   font-size: 28pt;"
+        "   font-weight: bold;"
+        "   color: #CDD6F4;"
+        "   padding: 10px;"
+        "   border-radius: 8px;"
+        "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "               stop:0 #313244, stop:1 #45475A);"
+        "   border: 2px solid #585B70;"
+        "}"
+        );
+
+    // Apply title styles
+    QList<QLabel*> titleLabels = {
+        ui->labelRpmTitle, ui->labelLoadTitle, ui->labelMapTitle,
+        ui->labelMafTitle, ui->labelCoolantTitle
+    };
+    for (QLabel* label : titleLabels) {
+        label->setStyleSheet(titleStyle);
+    }
+
+    // Apply value styles
+    QList<QLabel*> valueLabels = {
+        ui->labelRpm, ui->labelLoad, ui->labelMap,
+        ui->labelMaf, ui->labelCoolant
+    };
+    for (QLabel* label : valueLabels) {
+        label->setStyleSheet(valueStyle);
+    }
+
+    // Apply large display styles
+    QList<QLabel*> largeDisplays = {
+        ui->labelFuelConsumption, ui->labelAvgConsumption, ui->labelVoltage
+    };
+    for (QLabel* label : largeDisplays) {
+        label->setStyleSheet(largeDisplayStyle);
+    }
+
+    // Style for Exit button
+    ui->pushExit->setStyleSheet(QString(
+                                    "QPushButton {"
+                                    "    font-size: 22pt;"
+                                    "    font-weight: bold;"
+                                    "    color: %1;"
+                                    "    background-color: %2;"
+                                    "    border-radius: 8px;"
+                                    "    padding: 6px 10px;"
+                                    "}"
+                                    "QPushButton:hover {"
+                                    "    background-color: #F38BA8;"
+                                    "    color: #1E1E2E;"
+                                    "}"
+                                    ).arg(TEXT_COLOR, ACCENT_COLOR));
 }
 
 void ObdScan::startQueue()
@@ -135,8 +242,7 @@ void ObdScan::onTimeout()
     {
         auto dataReceived = getData(runtimeCommands[commandOrder]);
         if(dataReceived != "error")
-            analysData(dataReceived);
-        ui->labelCommand->setText(runtimeCommands[commandOrder]);
+            analysData(dataReceived);        
         commandOrder++;
     }
 }
@@ -246,7 +352,7 @@ void ObdScan::analysData(const QString &dataReceived)
             // Display with 2 decimal places
             // If boost is negative, it means vacuum
             QString boostValue = QString::number(boostPsi, 'f', 2) + " PSI";
-            ui->labelMap->setText(QString::number(value, 'f', 1) + " kPa" + " / " + boostValue);
+            ui->labelMap->setText(boostValue);
         }
             break;
         case 12: //PID(0C): RPM
@@ -295,9 +401,8 @@ void ObdScan::analysData(const QString &dataReceived)
                 displayText = QString("Idle: %1 L/h")
                                   .arg(fuelConsumption, 0, 'f', 1);
             } else {
-                displayText = QString("%1 L/100km\n%2 L/h")
-                                  .arg(consumption100km, 0, 'f', 1)
-                                  .arg(fuelConsumption, 0, 'f', 1);
+                displayText = QString("%1 L/100km")
+                                  .arg(consumption100km, 0, 'f', 1);
             }
             ui->labelFuelConsumption->setText(displayText);
 
@@ -390,40 +495,56 @@ double ObdScan::calculateInstantFuelConsumption(double maf, double iat)
 {
     if (maf <= 0) return 0.0;
 
-    // Engine specific constants
+    // Engine specific constants - adjusted for more realistic values
     const double ENGINE_DISPLACEMENT = 2.7;    // Liters
-    const double AIR_FUEL_RATIO = 18.0;       // Diesel ratio
+    const double AIR_FUEL_RATIO = 14.7;       // Changed to standard AFR (from 18.0)
     const double BASE_FUEL_DENSITY = 832.0;    // g/L at 15°C
-    const double LAMBDA = 1.0;                // Actual lambda from sensor if available
-    const double COMMON_RAIL_PRESSURE = 1600.0; // Bar (typical for diesel CR)
+    const double LAMBDA = 1.0;
+    const double COMMON_RAIL_PRESSURE = 1600.0; // Bar
 
-    // Air density correction for temperature
+    // Reduced temperature correction factor
     const double STANDARD_TEMP = 293.15;      // 20°C in Kelvin
     double actualTemp = iat + 273.15;         // Convert to Kelvin
-    double tempCorrection = STANDARD_TEMP / actualTemp;
+    double tempCorrection = std::sqrt(STANDARD_TEMP / actualTemp); // Softened correction
 
-    // Adjust MAF based on engine displacement and temperature
-    double correctedMaf = maf * tempCorrection * (ENGINE_DISPLACEMENT / 2.0); // Normalized to 2.0L
+    // Adjust MAF with reduced correction factor
+    double correctedMaf = maf * tempCorrection * (ENGINE_DISPLACEMENT / 2.7); // Normalized to actual displacement
 
-    // Temperature compensation for fuel density
-    double tempDiff = iat - 15.0;  // Difference from base temp of 15°C
-    double actualFuelDensity = BASE_FUEL_DENSITY - (0.7 * tempDiff);
+    // Simplified temperature compensation for fuel density
+    double tempDiff = iat - 15.0;
+    double actualFuelDensity = BASE_FUEL_DENSITY - (0.5 * tempDiff); // Reduced temperature impact
 
-    // Calculate fuel mass flow with displacement factor
+    // Calculate fuel mass flow
     double fuelMassFlow = correctedMaf / (AIR_FUEL_RATIO * LAMBDA);
 
     // Convert to volume flow (L/h)
     double fuelVolumeFlow = (fuelMassFlow * 3600) / actualFuelDensity;
 
-    // Common rail pressure compensation (higher pressure = better atomization)
-    double pressureCorrection = 1.0 + ((COMMON_RAIL_PRESSURE - 1500.0) / 10000.0);
+    // Reduced pressure correction impact
+    double pressureCorrection = 1.0 + ((COMMON_RAIL_PRESSURE - 1500.0) / 15000.0);
     fuelVolumeFlow *= pressureCorrection;
 
-    // Displacement-based limits
-    const double MAX_CONSUMPTION = ENGINE_DISPLACEMENT * 13.0; // Approx max L/h per liter
-    const double MIN_CONSUMPTION = ENGINE_DISPLACEMENT * 0.2;  // Approx min L/h per liter
+    // Adjusted displacement-based limits
+    const double MAX_CONSUMPTION = ENGINE_DISPLACEMENT * 8.0;  // Reduced from 13.0
+    const double MIN_CONSUMPTION = ENGINE_DISPLACEMENT * 0.3;  // Slightly increased minimum
 
     return std::clamp(fuelVolumeFlow, MIN_CONSUMPTION, MAX_CONSUMPTION);
+}
+
+double ObdScan::calculateL100km(double literPerHour, double speedKmh) const
+{
+    if (speedKmh < 5.0) {  // Below 5 km/h consider it idle
+        return 0.0;
+    }
+
+    // Formula: (L/h) / (km/h) * 100 = L/100km
+    double l100km = (literPerHour / speedKmh) * 100.0;
+
+    // Adjusted limits for more realistic consumption
+    const double MAX_L100KM = 20.0;  // Reduced from 30.0
+    const double MIN_L100KM = 4.0;   // Slightly increased from 3.0
+
+    return std::clamp(l100km, MIN_L100KM, MAX_L100KM);
 }
 
 double ObdScan::calculateAverageFuelConsumption(const QVector<double>& values) const
@@ -438,22 +559,6 @@ double ObdScan::calculateAverageFuelConsumption(const QVector<double>& values) c
     }
 
     return sum / values.size();
-}
-
-double ObdScan::calculateL100km(double literPerHour, double speedKmh) const
-{
-    if (speedKmh < 5.0) {  // Below 5 km/h consider it idle
-        return 0.0;
-    }
-
-    // Formula: (L/h) / (km/h) * 100 = L/100km
-    double l100km = (literPerHour / speedKmh) * 100.0;
-
-    // Reasonable limits for diesel
-    const double MAX_L100KM = 30.0;  // Maximum reasonable consumption
-    const double MIN_L100KM = 3.0;   // Minimum reasonable consumption
-
-    return std::clamp(l100km, MIN_L100KM, MAX_L100KM);
 }
 
 void ObdScan::setCurrentIat(double newCurrentIat)

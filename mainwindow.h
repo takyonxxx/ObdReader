@@ -22,6 +22,8 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    void applyStyles();
+
 private slots:
     void connected();
     void disconnected();

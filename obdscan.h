@@ -19,6 +19,9 @@ public:
     ~ObdScan() override;
 
     void setCurrentIat(double newCurrentIat);
+    void applyStyles();
+    void setupInitialValues();
+    void removeCommand(const QString& commandToRemove);
 
 private:
     QMutex m_mutex{};

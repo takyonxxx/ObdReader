@@ -12,47 +12,19 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    setWindowTitle("OBD-II Diagnostic Interface");
     QScreen *screen = window()->screen();
     desktopRect = screen->availableGeometry();
 
-    ui->textTerminal->setStyleSheet("font: 20pt; color: #00cccc; background-color: #001a1a;");
-    ui->pushConnect->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color:#154360; padding: 3px; spacing: 3px;");
-    ui->pushSend->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360; padding: 3px; spacing: 3px;");
-    ui->pushRead->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360; padding: 3px; spacing: 3px;");
-    ui->pushSetProtocol->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360; padding: 3px; spacing: 3px;");
-    ui->pushGetProtocol->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360; padding: 3px; spacing: 3px;");
-    ui->pushClear->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360; padding: 3px; spacing: 3px;");
-    ui->pushReadFault->setStyleSheet("font-size: 24pt; font-weight: bold; color: white; background-color: #0B5345; padding: 3px; spacing: 3px;");
-    ui->pushClearFault->setStyleSheet("font-size: 24pt; font-weight: bold; color: white; background-color: #0B5345; padding: 3px; spacing: 3px;");
-    ui->pushScan->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #154360 ; padding: 6px; spacing: 6px;");
-    ui->pushExit->setStyleSheet("font-size: 24pt; font-weight: bold; color: white;background-color: #512E5F; padding: 3px; spacing: 3px;");
-    ui->checkSearchPids->setStyleSheet(
-        "QCheckBox {"
-        "   font-size: 24pt;"
-        "   font-weight: bold;"
-        "   color: white;"
-        "   background-color: #0c677a;"
-        "   padding: 6px;"
-        "   spacing: 12px;"
-        "}"
-        "QCheckBox::indicator {"
-        "   width: 25px;"
-        "   height: 25px;"
-        "   border: 2px solid white;"
-        "   border-radius: 4px;"
-        "}"
-        "QCheckBox::indicator:unchecked {"
-        "   background-color: transparent;"
-        "}"
-        "QCheckBox::indicator:checked {"
-        "   background-color: #2ECC71;"  // Green when checked
-        "}"
-        "QCheckBox::indicator:hover {"
-        "   border-color: #85C1E9;"
+    // Set main window background
+    this->setStyleSheet(
+        "QMainWindow {"
+        "    background-color: #1E1E2E;"  // Dark background
         "}"
         );
-    ui->sendEdit->setStyleSheet("font-size: 20pt; font-weight: bold; color:white; padding: 3px; spacing: 3px;");
-    ui->protocolCombo->setStyleSheet("font-size: 20pt; font-weight: bold; color:white; padding: 3px; spacing: 3px;");
+
+    applyStyles();
+
     ui->protocolCombo->setCurrentIndex(3);
 
     connect(ui->pushConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
@@ -111,6 +83,148 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::applyStyles()
+{
+    // Common style variables
+    const QString PRIMARY_COLOR = "#89B4FA";      // Light blue
+    const QString SECONDARY_COLOR = "#313244";    // Dark gray
+    const QString ACCENT_COLOR = "#F38BA8";       // Pink
+    const QString SUCCESS_COLOR = "#A6E3A1";      // Green
+    const QString TEXT_COLOR = "#CDD6F4";         // Light gray
+
+    // Base button style
+    const QString buttonBaseStyle = QString(
+                                        "QPushButton {"
+                                        "    font-size: 22pt;"
+                                        "    font-weight: bold;"
+                                        "    color: %1;"                          // TEXT_COLOR
+                                        "    background-color: %2;"               // SECONDARY_COLOR
+                                        "    border-radius: 8px;"
+                                        "    padding: 6px 10px;"
+                                        "    margin: 4px;"
+                                        "}"
+                                        "QPushButton:hover {"
+                                        "    background-color: %3;"               // PRIMARY_COLOR
+                                        "    color: #1E1E2E;"
+                                        "}"
+                                        "QPushButton:pressed {"
+                                        "    background-color: %4;"               // Darker version
+                                        "    padding: 14px 18px;"
+                                        "}"
+                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#7497D3");
+
+    // Terminal style
+    ui->textTerminal->setStyleSheet(QString(
+        "QTextEdit {"
+        "    font: 20pt 'Consolas';"
+        "    color: #94E2D5;"                     // Cyan text
+        "    background-color: #11111B;"          // Darker background
+        "    border: 1px solid #313244;"
+        "    border-radius: 8px;"
+        "    padding: 10px;"
+        "}"
+        ));
+
+    // Standard buttons
+    QList<QPushButton*> standardButtons = {
+        ui->pushConnect, ui->pushSend, ui->pushRead,
+        ui->pushSetProtocol, ui->pushGetProtocol, ui->pushClear,
+        ui->pushScan
+    };
+    for (auto* button : standardButtons) {
+        button->setStyleSheet(buttonBaseStyle);
+    }
+
+    // Fault-related buttons with special color
+    const QString faultButtonStyle = buttonBaseStyle;
+    ui->pushReadFault->setStyleSheet(QString(
+                                         "QPushButton {"
+                                         "    font-size: 22pt;"
+                                         "    font-weight: bold;"
+                                         "    color: %1;"
+                                         "    background-color: #45475A;"          // Different background
+                                         "    border-radius: 8px;"
+                                         "    padding: 6px 10px;"
+                                         "}"
+                                         "QPushButton:hover {"
+                                         "    background-color: %2;"
+                                         "    color: #1E1E2E;"
+                                         "}"
+                                         ).arg(TEXT_COLOR, SUCCESS_COLOR));
+    ui->pushClearFault->setStyleSheet(faultButtonStyle);
+
+    // Exit button with warning color
+    ui->pushExit->setStyleSheet(QString(
+                                    "QPushButton {"
+                                    "    font-size: 22pt;"
+                                    "    font-weight: bold;"
+                                    "    color: %1;"
+                                    "    background-color: %2;"
+                                    "    border-radius: 8px;"
+                                    "    padding: 6px 10px;"
+                                    "}"
+                                    "QPushButton:hover {"
+                                    "    background-color: #F38BA8;"
+                                    "    color: #1E1E2E;"
+                                    "}"
+                                    ).arg(TEXT_COLOR, ACCENT_COLOR));
+
+    // Checkbox style
+    ui->checkSearchPids->setStyleSheet(QString(
+                                           "QCheckBox {"
+                                           "    font-size: 24pt;"
+                                           "    font-weight: bold;"
+                                           "    color: %1;"
+                                           "    padding: 8px;"
+                                           "    spacing: 12px;"
+                                           "}"
+                                           "QCheckBox::indicator {"
+                                           "    width: 28px;"
+                                           "    height: 28px;"
+                                           "    border: 2px solid %2;"
+                                           "    border-radius: 6px;"
+                                           "}"
+                                           "QCheckBox::indicator:unchecked {"
+                                           "    background-color: transparent;"
+                                           "}"
+                                           "QCheckBox::indicator:checked {"
+                                           "    background-color: %3;"
+                                           "    image: url(:/icons/check.png);"      // Optional: Add checkmark icon
+                                           "}"
+                                           "QCheckBox::indicator:hover {"
+                                           "    border-color: %4;"
+                                           "}"
+                                           ).arg(TEXT_COLOR, PRIMARY_COLOR, SUCCESS_COLOR, PRIMARY_COLOR));
+
+    // Input fields style
+    const QString inputStyle = QString(
+                                   "QWidget {"
+                                   "    font-size: 20pt;"
+                                   "    font-weight: bold;"
+                                   "    color: %1;"
+                                   "    background-color: %2;"
+                                   "    border: 1px solid %3;"
+                                   "    border-radius: 6px;"
+                                   "    padding: 8px;"
+                                   "}"
+                                   "QWidget:focus {"
+                                   "    border: 2px solid %4;"
+                                   "}"
+                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#B4BEFE");
+
+    ui->sendEdit->setStyleSheet(inputStyle);
+    ui->protocolCombo->setStyleSheet(inputStyle + QString(
+                                         "QComboBox::drop-down {"
+                                         "    border: none;"
+                                         "    width: 30px;"
+                                         "}"
+                                         "QComboBox::down-arrow {"
+                                         "    image: url(:/icons/dropdown.png);"   // Optional: Add dropdown icon
+                                         "    width: 16px;"
+                                         "    height: 16px;"
+                                         "}"
+                                         ));
+}
 
 void MainWindow::connected()
 {    
@@ -328,8 +442,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    QString ip = "192.168.0.10";
-    //QString ip = "192.168.1.16";
+    //QString ip = "192.168.0.10";
+    QString ip = "192.168.1.16";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
