@@ -18,7 +18,6 @@ public:
     explicit ObdScan(QWidget *parent = nullptr);
     ~ObdScan() override;
 
-    void setCurrentIat(double newCurrentIat);
     void applyStyles();
     void setupInitialValues();
     void removeCommand(const QString& commandToRemove);
@@ -31,6 +30,7 @@ private:
     QTimer m_timer{};
     int map{0};
     double barometric_pressure{0.0};
+    double air_temp{0.0};
 
     bool mRunning{false};
     int commandOrder{0};
@@ -43,8 +43,7 @@ private:
     QVector<double> mFuelConsumptionPer100;
     double calculateL100km(double literPerHour, double speedKmh) const;
     const double AIR_FUEL_RATIO = 14.7; // For gasoline (stoichiometric ratio)
-    const double FUEL_DENSITY = 745.0;  // Gasoline density in g/L at 15°C
-    double m_currentIat = 10.0;  // Default to 20°C
+    const double FUEL_DENSITY = 745.0;  // Gasoline density in g/L at 15°C    
     double m_speed = 0.0;
 
     QString send(const QString &);

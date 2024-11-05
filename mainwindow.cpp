@@ -46,7 +46,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_settingsManager = SettingsManager::getInstance();
     if(m_settingsManager)
-    {
+    {       
+        saveSettings();
         ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " + QString::number(m_settingsManager->getWifiPort()));
     }
 
@@ -482,11 +483,6 @@ void MainWindow::analysData(const QString &dataReceived)
 
 void MainWindow::onConnectClicked()
 {
-    if(m_settingsManager)
-    {
-        saveSettings();
-    }
-
     if(ui->pushConnect->text() == "Connect")
     {
         QCoreApplication::processEvents();
@@ -556,6 +552,7 @@ void MainWindow::onClearClicked()
     {
         ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " + QString::number(m_settingsManager->getWifiPort()));
     }
+    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) + "x" + QString::number(desktopRect.height()));
 }
 
 void MainWindow::onReadFaultClicked()

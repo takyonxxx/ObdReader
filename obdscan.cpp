@@ -20,18 +20,22 @@ ObdScan::ObdScan(QWidget *parent) :
     applyStyles();
     setupInitialValues();
 
-    runtimeCommands.append(VOLTAGE);
-    removeCommand("0100");
+    removeCommand(PIDS_SUPPORTED20);
+    removeCommand(THROTTLE_POSITION);
+    removeCommand(OBD_STANDARDS);
 
     if(runtimeCommands.isEmpty())
     {       
-        runtimeCommands.append(VEHICLE_SPEED);
-        runtimeCommands.append(ENGINE_RPM);
         runtimeCommands.append(ENGINE_LOAD);
         runtimeCommands.append(COOLANT_TEMP);
         runtimeCommands.append(MAN_ABSOLUTE_PRESSURE);
+        runtimeCommands.append(ENGINE_RPM);
+        runtimeCommands.append(VEHICLE_SPEED);
+        runtimeCommands.append(INTAKE_AIR_TEMP);
         runtimeCommands.append(MAF_AIR_FLOW);
     }
+
+    runtimeCommands.append(VOLTAGE);
 
     // Debug remaining commands
     qDebug() << "\nCurrent runtime commands:";
@@ -70,6 +74,7 @@ void ObdScan::setupInitialValues()
     ui->labelLoad->setText("0 %");
     ui->labelMap->setText("0 PSI");
     ui->labelMaf->setText("0 g/s");
+    ui->labelTemp->setText("0 °C");
     ui->labelCoolant->setText("0 °C");
 }
 
@@ -143,7 +148,7 @@ void ObdScan::applyStyles()
     // Apply title styles
     QList<QLabel*> titleLabels = {
         ui->labelRpmTitle, ui->labelLoadTitle, ui->labelMapTitle,
-        ui->labelMafTitle, ui->labelCoolantTitle
+        ui->labelMafTitle, ui->labelCoolantTitle, ui->labelTempTitle
     };
     for (QLabel* label : titleLabels) {
         label->setStyleSheet(titleStyle);
@@ -152,7 +157,7 @@ void ObdScan::applyStyles()
     // Apply value styles
     QList<QLabel*> valueLabels = {
         ui->labelRpm, ui->labelLoad, ui->labelMap,
-        ui->labelMaf, ui->labelCoolant
+        ui->labelMaf, ui->labelCoolant, ui->labelTemp
     };
     for (QLabel* label : valueLabels) {
         label->setStyleSheet(valueStyle);
@@ -398,14 +403,19 @@ void ObdScan::analysData(const QString &dataReceived)
         case 15://PID(0F): Intake Air Temperature
             // A - 40
             value = A - 40;
+            air_temp = value;
+            ui->labelTemp->setText(QString::number(value, 'f', 0) + " C°");
             break;
         case 16://PID(10): MAF air flow rate grams/sec
         {
             value = ((256*A)+B) / 100;  // MAF in g/s
             ui->labelMaf->setText(QString::number(value) + " g/s");
 
+            if(air_temp <= 0)
+                air_temp = 15.0;
+
             // Calculate L/h
-            double fuelConsumption = calculateInstantFuelConsumption(value, m_currentIat);
+            double fuelConsumption = calculateInstantFuelConsumption(value, air_temp);
             mFuelConsumption.append(fuelConsumption);
 
             // Calculate L/100km
@@ -588,9 +598,4 @@ double ObdScan::calculateAverageFuelConsumption(const QVector<double>& values) c
     }
 
     return sum / values.size();
-}
-
-void ObdScan::setCurrentIat(double newCurrentIat)
-{
-    m_currentIat = newCurrentIat;
 }
