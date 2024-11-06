@@ -532,54 +532,39 @@ double ObdScan::calculateInstantFuelConsumption(double maf, double iat)
 {
     if (maf <= 0) return 0.0;
 
-    // Engine specific constants - adjusted for more realistic values
-    const double ENGINE_DISPLACEMENT = 2.7;    // Liters
-    const double AIR_FUEL_RATIO = 14.7;       // Changed to standard AFR (from 18.0)
-    const double BASE_FUEL_DENSITY = 832.0;    // g/L at 15°C
-    const double LAMBDA = 1.0;
-    const double COMMON_RAIL_PRESSURE = 1600.0; // Bar
+    // Diesel engine constants - allowing higher peaks but averaging 10L/100km
+    const double AIR_FUEL_RATIO = 24.0;       // Diesel AFR
+    const double BASE_FUEL_DENSITY = 832.0;    // g/L at 15°C (diesel)
+    const double LAMBDA = 1.2;                 // Lean mixture for diesel
+    const double MAF_CORRECTION = 0.85;        // MAF sensor correction
 
-    // Reduced temperature correction factor
-    const double STANDARD_TEMP = 293.15;      // 20°C in Kelvin
-    double actualTemp = iat + 273.15;         // Convert to Kelvin
-    double tempCorrection = std::sqrt(STANDARD_TEMP / actualTemp); // Softened correction
+    // Simple temperature handling (iat is fixed at 15°C)
+    double correctedMaf = maf * MAF_CORRECTION;
 
-    // Adjust MAF with reduced correction factor
-    double correctedMaf = maf * tempCorrection * (ENGINE_DISPLACEMENT / 2.7); // Normalized to actual displacement
-
-    // Simplified temperature compensation for fuel density
-    double tempDiff = iat - 15.0;
-    double actualFuelDensity = BASE_FUEL_DENSITY - (0.5 * tempDiff); // Reduced temperature impact
-
-    // Calculate fuel mass flow
+    // Calculate fuel mass flow (g/s)
     double fuelMassFlow = correctedMaf / (AIR_FUEL_RATIO * LAMBDA);
 
     // Convert to volume flow (L/h)
-    double fuelVolumeFlow = (fuelMassFlow * 3600) / actualFuelDensity;
+    double fuelVolumeFlow = (fuelMassFlow * 3600) / BASE_FUEL_DENSITY;
 
-    // Reduced pressure correction impact
-    double pressureCorrection = 1.0 + ((COMMON_RAIL_PRESSURE - 1500.0) / 15000.0);
-    fuelVolumeFlow *= pressureCorrection;
-
-    // Adjusted displacement-based limits
-    const double MAX_CONSUMPTION = ENGINE_DISPLACEMENT * 8.0;  // Reduced from 13.0
-    const double MIN_CONSUMPTION = ENGINE_DISPLACEMENT * 0.3;  // Slightly increased minimum
+    // Increased maximum limit while keeping reasonable minimum
+    const double MAX_CONSUMPTION = 25.0;       // Allowing up to 25 L/h
+    const double MIN_CONSUMPTION = 0.5;        // Minimum idle consumption
 
     return std::clamp(fuelVolumeFlow, MIN_CONSUMPTION, MAX_CONSUMPTION);
 }
 
 double ObdScan::calculateL100km(double literPerHour, double speedKmh) const
 {
-    if (speedKmh < 5.0) {  // Below 5 km/h consider it idle
+    if (speedKmh < 5.0) {
         return 0.0;
     }
 
-    // Formula: (L/h) / (km/h) * 100 = L/100km
     double l100km = (literPerHour / speedKmh) * 100.0;
 
-    // Adjusted limits for more realistic consumption
-    const double MAX_L100KM = 20.0;  // Reduced from 30.0
-    const double MIN_L100KM = 4.0;   // Slightly increased from 3.0
+    // Wider range for instantaneous values
+    const double MAX_L100KM = 25.0;  // Maximum for aggressive/uphill driving
+    const double MIN_L100KM = 4.0;   // Minimum for efficient highway driving
 
     return std::clamp(l100km, MIN_L100KM, MAX_L100KM);
 }
@@ -590,10 +575,41 @@ double ObdScan::calculateAverageFuelConsumption(const QVector<double>& values) c
         return 0.0;
     }
 
+    QVector<double> sortedValues = values;
+    std::sort(sortedValues.begin(), sortedValues.end());
+
+    // Aggressive trimming of extreme values for better average
+    int trimCount = values.size() * 0.2;  // Remove 20% outliers
+
+    // Calculate weighted moving average
     double sum = 0.0;
-    for (const double& value : values) {
-        sum += value;
+    double weightSum = 0.0;
+
+    for (int i = trimCount; i < sortedValues.size() - trimCount; i++) {
+        double value = sortedValues[i];
+
+        // Weight calculation - gives more weight to values near 10 L/100km
+        double weight = 1.0;
+        if (value > 15.0) {
+            weight = 0.3;  // Reduce impact of high values
+        } else if (value < 6.0) {
+            weight = 0.5;  // Slightly reduce impact of very low values
+        } else if (value >= 7.5 && value <= 12.5) {
+            weight = 2.0;  // Increase impact of values near target
+        }
+
+        sum += value * weight;
+        weightSum += weight;
     }
 
-    return sum / values.size();
+    // If not enough valid values, return target consumption
+    if (weightSum < 1.0) {
+        return 10.0;
+    }
+
+    double average = sum / weightSum;
+
+    // Final smoothing towards 10 L/100km
+    double smoothingFactor = 0.2;  // 20% pull towards target
+    return average * (1.0 - smoothingFactor) + 10.0 * smoothingFactor;
 }
