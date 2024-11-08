@@ -86,11 +86,20 @@ MainWindow::~MainWindow()
 
 void MainWindow::applyStyles()
 {
-    // Common style variables
-    const QString PRIMARY_COLOR = "#89B4FA";      // Light blue
-    const QString SECONDARY_COLOR = "#313244";    // Dark gray    
-    const QString SUCCESS_COLOR = "#A6E3A1";      // Green
-    const QString TEXT_COLOR = "#CDD6F4";         // Light gray
+    // Marine theme color palette
+    const QString PRIMARY_COLOR = "#005999";      // Lighter marine blue
+    const QString SECONDARY_COLOR = "#002D4D";    // Darker marine blue
+    const QString ACCENT_COLOR = "#0073BF";       // Bright marine blue
+    const QString TEXT_COLOR = "#E6F3FF";         // Light blue-white
+    const QString BORDER_COLOR = "#004C80";       // Mid marine blue
+    const QString BACKGROUND_COLOR = "#003366";   // Main background
+
+    // Update main window background
+    this->setStyleSheet(
+        "QMainWindow {"
+        "    background-color: #003366;"  // Match ObdScan background
+        "}"
+        );
 
     // Base button style
     const QString buttonBaseStyle = QString(
@@ -105,25 +114,25 @@ void MainWindow::applyStyles()
                                         "}"
                                         "QPushButton:hover {"
                                         "    background-color: %3;"               // PRIMARY_COLOR
-                                        "    color: #1E1E2E;"
+                                        "    color: #E6F3FF;"
                                         "}"
                                         "QPushButton:pressed {"
                                         "    background-color: %4;"               // Darker version
                                         "    padding: 14px 18px;"
                                         "}"
-                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#7497D3");
+                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#001F33");
 
-    // Terminal style
+    // Terminal style with marine theme
     ui->textTerminal->setStyleSheet(QString(
-        "QTextEdit {"
-        "    font: 20pt 'Consolas';"
-        "    color: #94E2D5;"                     // Cyan text
-        "    background-color: #11111B;"          // Darker background
-        "    border: 1px solid #313244;"
-        "    border-radius: 8px;"
-        "    padding: 10px;"
-        "}"
-        ));
+                                        "QTextEdit {"
+                                        "    font: 20pt 'Consolas';"
+                                        "    color: %1;"                     // Light text
+                                        "    background-color: %2;"          // Darker background
+                                        "    border: 1px solid %3;"
+                                        "    border-radius: 8px;"
+                                        "    padding: 10px;"
+                                        "}"
+                                        ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR));
 
     // Standard buttons
     QList<QPushButton*> standardButtons = {
@@ -135,7 +144,7 @@ void MainWindow::applyStyles()
         button->setStyleSheet(buttonBaseStyle);
     }
 
-    // Checkbox style
+    // Checkbox style with marine theme
     ui->checkSearchPids->setStyleSheet(QString(
                                            "QCheckBox {"
                                            "    font-size: 22pt;"
@@ -155,12 +164,11 @@ void MainWindow::applyStyles()
                                            "}"
                                            "QCheckBox::indicator:checked {"
                                            "    background-color: %3;"
-                                           "    image: url(:/icons/check.png);"      // Optional: Add checkmark icon
                                            "}"
                                            "QCheckBox::indicator:hover {"
                                            "    border-color: %4;"
                                            "}"
-                                           ).arg(TEXT_COLOR, PRIMARY_COLOR, SUCCESS_COLOR, PRIMARY_COLOR));
+                                           ).arg(TEXT_COLOR, PRIMARY_COLOR, ACCENT_COLOR, PRIMARY_COLOR));
 
     // Input fields style
     const QString inputStyle = QString(
@@ -176,7 +184,7 @@ void MainWindow::applyStyles()
                                    "QWidget:focus {"
                                    "    border: 2px solid %4;"
                                    "}"
-                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#B4BEFE");
+                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR);
 
     ui->sendEdit->setStyleSheet(inputStyle);
     ui->protocolCombo->setStyleSheet(inputStyle + QString(
@@ -185,11 +193,62 @@ void MainWindow::applyStyles()
                                          "    width: 30px;"
                                          "}"
                                          "QComboBox::down-arrow {"
-                                         "    image: url(:/icons/dropdown.png);"   // Optional: Add dropdown icon
                                          "    width: 16px;"
                                          "    height: 16px;"
                                          "}"
                                          ));
+
+    // Interval slider style with marine theme
+    ui->labelInterval->setStyleSheet(QString(
+                                         "QLabel {"
+                                         "    font-size: 28px;"
+                                         "    font-weight: bold;"
+                                         "    color: %1;"
+                                         "    padding: 3px;"
+                                         "    background-color: %2;"
+                                         "    border-radius: 3px;"
+                                         "    margin: 3px;"
+                                         "}"
+                                         ).arg(TEXT_COLOR, SECONDARY_COLOR));
+
+    ui->intervalSlider->setStyleSheet(QString(
+                                          "QSlider::groove:horizontal {"
+                                          "    border: none;"
+                                          "    height: 20px;"
+                                          "    background: %1;"
+                                          "    border-radius: 5px;"
+                                          "    margin: 0px;"
+                                          "}"
+                                          "QSlider::handle:horizontal {"
+                                          "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+                                          "        stop:0 %2, stop:1 %3);"
+                                          "    border: none;"
+                                          "    width: 30px;"
+                                          "    margin: -5px 0;"
+                                          "    border-radius: 10px;"
+                                          "}"
+                                          "QSlider::sub-page:horizontal {"
+                                          "    background: %4;"
+                                          "    border-radius: 5px;"
+                                          "}"
+                                          "QSlider::add-page:horizontal {"
+                                          "    background: %5;"
+                                          "    border-radius: 5px;"
+                                          "}"
+                                          "QSlider::tick-mark {"
+                                          "    background: %6;"
+                                          "    width: 2px;"
+                                          "    height: 5px;"
+                                          "    margin-top: 5px;"
+                                          "}"
+                                          ).arg(
+                                              "#001F33",              // Groove background
+                                              ACCENT_COLOR,           // Handle gradient start
+                                              PRIMARY_COLOR,          // Handle gradient end
+                                              PRIMARY_COLOR,          // Sub-page (filled)
+                                              "#001F33",              // Add-page (empty)
+                                              BORDER_COLOR            // Tick marks
+                                              ));
 }
 
 void MainWindow::connected()
@@ -384,7 +443,7 @@ void MainWindow::setupIntervalSlider()
             this, &MainWindow::onIntervalSliderChanged);
 
     // Initial label update
-    ui->labelInterval->setText(QString("Rate: %1 ms").arg(interval));
+    ui->labelInterval->setText(QString("%1 ms").arg(interval));
 }
 
 QString MainWindow::getData(const QString &command)
@@ -408,8 +467,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    QString ip = "192.168.0.10";
-    //QString ip = "192.168.1.16";
+   // QString ip = "192.168.0.10";
+    QString ip = "192.168.1.16";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
@@ -631,7 +690,7 @@ void MainWindow::onScanClicked()
 void MainWindow::onIntervalSliderChanged(int value)
 {
     interval = value * 10;  // This will give you 0-1000 ms range
-    ui->labelInterval->setText(QString("Interval: %1 ms").arg(interval));
+    ui->labelInterval->setText(QString("%1 ms").arg(interval));
 }
 
 void MainWindow::onSearchPidsStateChanged(int state)

@@ -12,7 +12,7 @@ ObdScan::ObdScan(QWidget *parent) :
     setWindowTitle("ELM327 OBD-II Diagnostic Scanner");
     this->centralWidget()->setStyleSheet(
         "QWidget {"
-        "   background-color: #1E1E2E;"    // Dark theme background
+        "   background-color: #003366;"    // Dark theme background
         "   border: none;"
         "}"
         );
@@ -77,10 +77,12 @@ void ObdScan::setupInitialValues()
 
 void ObdScan::applyStyles()
 {
-    const QString PRIMARY_COLOR = "#89B4FA";      // Light blue
-    const QString SECONDARY_COLOR = "#313244";    // Dark gray
-    const QString SUCCESS_COLOR = "#A6E3A1";      // Green
-    const QString TEXT_COLOR = "#CDD6F4";         // Light gray
+    // Marine theme color palette
+    const QString PRIMARY_COLOR = "#005999";      // Lighter marine blue
+    const QString SECONDARY_COLOR = "#002D4D";    // Darker marine blue
+    const QString SUCCESS_COLOR = "#006B54";      // Deep teal
+    const QString TEXT_COLOR = "#E6F3FF";         // Light blue-white
+    const QString BORDER_COLOR = "#004C80";       // Mid marine blue
 
     const QString buttonBaseStyle = QString(
                                         "QPushButton {"
@@ -94,24 +96,24 @@ void ObdScan::applyStyles()
                                         "}"
                                         "QPushButton:hover {"
                                         "    background-color: %3;"               // PRIMARY_COLOR
-                                        "    color: #1E1E2E;"
+                                        "    color: #E6F3FF;"
                                         "}"
                                         "QPushButton:pressed {"
                                         "    background-color: %4;"               // Darker version
                                         "    padding: 14px 18px;"
                                         "}"
-                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#7497D3");
+                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#004C80");
 
     // Common styles for title labels
     const QString titleStyle = QString(
         "QLabel {"
         "   font-size: 24pt;"
         "   font-weight: bold;"
-        "   color: #CDD6F4;"              // Light text for contrast
+        "   color: #E6F3FF;"              // Light text for contrast
         "   padding: 10px;"
         "   border-radius: 5px;"
         "   background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "               stop:0 #45475A, stop:1 #585B70);"  // Gradient background
+        "               stop:0 #002D4D, stop:1 #004C80);"  // Marine gradient
         "}"
         );
 
@@ -120,11 +122,11 @@ void ObdScan::applyStyles()
         "QLabel {"
         "   font-size: 24pt;"
         "   font-weight: bold;"
-        "   color: #CDD6F4;"
+        "   color: #E6F3FF;"
         "   padding: 10px;"
         "   border-radius: 5px;"
-        "   background-color: #313244;"    // Slightly lighter than background
-        "   border: 1px solid #45475A;"    // Subtle border
+        "   background-color: #002D4D;"    // Darker marine blue
+        "   border: 1px solid #004C80;"    // Marine blue border
         "}"
         );
 
@@ -133,12 +135,12 @@ void ObdScan::applyStyles()
         "QLabel {"
         "   font-size: 28pt;"
         "   font-weight: bold;"
-        "   color: #CDD6F4;"
+        "   color: #E6F3FF;"
         "   padding: 10px;"
         "   border-radius: 8px;"
         "   background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-        "               stop:0 #313244, stop:1 #45475A);"
-        "   border: 2px solid #585B70;"
+        "               stop:0 #002D4D, stop:1 #004C80);"
+        "   border: 2px solid #005999;"
         "}"
         );
 
@@ -162,13 +164,13 @@ void ObdScan::applyStyles()
 
     // Apply large display styles
     QList<QLabel*> largeDisplays = {
-         ui->labelAvgConsumption
+        ui->labelAvgConsumption
     };
     for (QLabel* label : largeDisplays) {
         label->setStyleSheet(largeDisplayStyle);
     }
 
-    // Style for Exit button
+    // Style for buttons
     ui->pushExit->setStyleSheet(buttonBaseStyle);
     ui->pushClear->setStyleSheet(buttonBaseStyle);
 }
