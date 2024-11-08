@@ -467,8 +467,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-   // QString ip = "192.168.0.10";
-    QString ip = "192.168.1.16";
+    QString ip = "192.168.0.10";
+    //QString ip = "192.168.1.16";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
