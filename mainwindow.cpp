@@ -784,23 +784,32 @@ void MainWindow::onReadFaultClicked()
 {
     if(!m_connected)
         return;
+    ui->textTerminal->append("-> Reading PCM trouble codes...");
 
-    // First read engine DTCs
-    ui->textTerminal->append("-> Reading engine trouble codes...");
-    send("ATSH 7E0");  // Set header for engine ECU
-    QThread::msleep(60);
+    // Select the PCM/Engine control module
+    send("ATSH 7E0");  // Set header for PCM/Engine ECU
+    QThread::msleep(100);
+
+    // Request PCM DTCs (using standard Mode 03 request)
     send(READ_TROUBLE);
+    QThread::msleep(250);  // Longer delay for complete response
 }
 
 void MainWindow::onClearFaultClicked()
 {
     if(!m_connected)
         return;
+    ui->textTerminal->append("-> Clearing PCM trouble codes...");
 
-    ui->textTerminal->append("-> Clearing the trouble codes.");
-    send("ATSH 7E0");  // Make sure we're addressing the engine ECU
-    QThread::msleep(60);
+    // Select the PCM/Engine control module
+    send("ATSH 7E0");  // Set header for PCM/Engine ECU
+    QThread::msleep(100);
+
+    // Clear DTCs (using standard Mode 04 request)
     send(CLEAR_TROUBLE);
+    QThread::msleep(250);
+
+    ui->textTerminal->append("PCM codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onReadTransFaultClicked()
@@ -815,7 +824,7 @@ void MainWindow::onReadTransFaultClicked()
     QThread::msleep(100);
 
     // Read DTCs from transmission
-    send(READ_TRANSMISSION);
+    send(READ_TROUBLE);
     QThread::msleep(250);  // Longer delay for complete response
 }
 
@@ -831,7 +840,7 @@ void MainWindow::onClearTransFaultClicked()
     QThread::msleep(100);
 
     // Clear DTCs
-    send(CLEAR_TRANS_TROUBLE);
+    send(CLEAR_TROUBLE);
     QThread::msleep(250);  // Wait for ECU to process
 
     ui->textTerminal->append("Transmission codes cleared. Please cycle ignition.");
@@ -839,7 +848,12 @@ void MainWindow::onClearTransFaultClicked()
 
 void MainWindow::onScanClicked()
 {
+    if(!m_connected)
+        return;
+
     ObdScan *obdScan = new ObdScan(this);
+    send("ATSH 7E0");
+    QThread::msleep(100);
     obdScan->show();
 }
 
@@ -904,7 +918,7 @@ void MainWindow::onReadAirbagFaultClicked()
     QThread::msleep(100);
 
     // Request Airbag DTCs (using standard Mode 03 request)
-    send("03");
+    send(READ_TROUBLE);
     QThread::msleep(250);  // Longer delay for complete response
 }
 
@@ -919,7 +933,7 @@ void MainWindow::onClearAirbagFaultClicked()
     QThread::msleep(100);
 
     // Clear DTCs (using standard Mode 04 request)
-    send("04");
+    send(CLEAR_TROUBLE);
     QThread::msleep(250);
 
     ui->textTerminal->append("Airbag codes cleared. Please cycle ignition.");

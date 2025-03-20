@@ -91,9 +91,7 @@ static QString DEFAULT = "ATD",
     CLEAR_TROUBLE = "04", //Clear trouble codes / Malfunction indicator lamp (MIL) / Check engine light
     ONLY_ENGINE_ECU = "ATSH7E0",
     PROTOCOL_ISO_9141_2 = "ATSP3",
-    READ_TRANS_TROUBLE = "0902",   // Mode 09, PID 02 for VIN
-    READ_TRANSMISSION = "03",      // Mode 03 for stored DTCs
-    CLEAR_TRANS_TROUBLE = "04";    // Mode 04 for clearing DTCs;
+    READ_TRANS_TROUBLE = "0902";   // Mode 09, PID 02 for VIN
 
 //0104, 0105, 010B, 010C, 010D, 010F, 0110, 0111, 011C (ENGINE_LOAD, COOLANT_TEMP, MAN_ABSOLUTE_PRESSURE, ENGINE_RPM, VEHICLE_SPEED, INTAKE_AIR_TEMP, MAF_AIR_FLOW, THROTTLE_POSITION, OBD_STANDARDS)
 
