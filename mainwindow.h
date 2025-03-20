@@ -50,6 +50,8 @@ public slots:
     void onSearchPidsStateChanged(int state);
     void onReadTransFaultClicked();
     void onClearTransFaultClicked();
+    void onReadAirbagFaultClicked();
+    void onClearAirbagFaultClicked();
 
 private slots:
     // Communication event handlers

@@ -154,6 +154,8 @@ void MainWindow::setupConnections()
     connect(ui->checkSearchPids, &QCheckBox::stateChanged, this, &MainWindow::onSearchPidsStateChanged);
     connect(ui->btnReadTransFault, &QPushButton::clicked, this, &MainWindow::onReadTransFaultClicked);
     connect(ui->btnClearTransFault, &QPushButton::clicked, this, &MainWindow::onClearTransFaultClicked);
+    connect(ui->btnReadAirbagFault, &QPushButton::clicked, this, &MainWindow::onReadAirbagFaultClicked);
+    connect(ui->btnClearAirbagFault, &QPushButton::clicked, this, &MainWindow::onClearAirbagFaultClicked);
 
     // Connect ConnectionManager signals
     if(m_connectionManager) {
@@ -219,7 +221,7 @@ void MainWindow::applyStyles()
         ui->pushConnect, ui->pushSend, ui->pushRead,
         ui->pushSetProtocol, ui->pushGetProtocol, ui->pushClear,
         ui->pushScan, ui->pushReadFault, ui->btnReadTransFault, ui->btnClearTransFault,
-        ui->pushClearFault, ui->pushExit
+        ui->pushClearFault, ui->btnReadAirbagFault, ui->btnClearAirbagFault, ui->pushExit
     };
 
     for (auto* button : standardButtons) {
@@ -890,3 +892,67 @@ void MainWindow::onExitClicked()
 
     QApplication::quit();
 }
+
+void MainWindow::onReadAirbagFaultClicked()
+{
+    if(!m_connected)
+        return;
+    ui->textTerminal->append("-> Reading Airbag/SRS trouble codes...");
+
+    // First select the Airbag control module
+    send("ATSH 7D3");  // Set header for Airbag ECU (try 7D0 if this doesn't work)
+    QThread::msleep(100);
+
+    // Request Airbag DTCs (using standard Mode 03 request)
+    send("03");
+    QThread::msleep(250);  // Longer delay for complete response
+}
+
+void MainWindow::onClearAirbagFaultClicked()
+{
+    if(!m_connected)
+        return;
+    ui->textTerminal->append("-> Clearing Airbag/SRS trouble codes...");
+
+    // First select the Airbag control module
+    send("ATSH 7D3");  // Set header for Airbag ECU
+    QThread::msleep(100);
+
+    // Clear DTCs (using standard Mode 04 request)
+    send("04");
+    QThread::msleep(250);
+
+    ui->textTerminal->append("Airbag codes cleared. Please cycle ignition.");
+}
+
+// void MainWindow::onReadAbsFaultClicked()
+// {
+//     if(!m_connected)
+//         return;
+//     ui->textTerminal->append("-> Reading ABS trouble codes...");
+
+//     // First select the ABS control module
+//     send("ATSH 7E4");  // Set header for ABS ECU
+//     QThread::msleep(100);
+
+//     // Request ABS DTCs (using standard Mode 03 request)
+//     send("03");
+//     QThread::msleep(250);  // Longer delay for complete response
+// }
+
+// void MainWindow::onClearAbsFaultClicked()
+// {
+//     if(!m_connected)
+//         return;
+//     ui->textTerminal->append("-> Clearing ABS trouble codes...");
+
+//     // First select the ABS control module
+//     send("ATSH 7E4");  // Set header for ABS ECU
+//     QThread::msleep(100);
+
+//     // Clear DTCs (using standard Mode 04 request)
+//     send("04");
+//     QThread::msleep(250);
+
+//     ui->textTerminal->append("ABS codes cleared. Please cycle ignition.");
+// }
