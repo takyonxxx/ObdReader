@@ -3,6 +3,8 @@
 #include <QMainWindow>
 #include <QtCore>
 #include <QVector>
+#include <QStringList>
+
 extern QStringList runtimeCommands;
 extern int interval;
 

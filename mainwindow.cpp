@@ -1,9 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "obdscan.h"
-
 #include "global.h"
-QStringList runtimeCommands = {};  // initialize
+
+QStringList runtimeCommands;
 int interval = 10;
 
 MainWindow::MainWindow(QWidget *parent)
@@ -12,21 +12,76 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
+    // Initialize screen and window properties
     setWindowTitle("OBD-II Diagnostic Interface");
     QScreen *screen = window()->screen();
     desktopRect = screen->availableGeometry();
 
-    // Set main window background
-    this->setStyleSheet(
-        "QMainWindow {"
-        "    background-color: #1E1E2E;"  // Dark background
-        "}"
-        );
-
+    // Apply styling
     applyStyles();
 
+    // Set protocol default
     ui->protocolCombo->setCurrentIndex(3);
 
+    // Initialize OBD components
+    elm = ELM::getInstance();
+    elm->resetPids();
+
+    m_settingsManager = SettingsManager::getInstance();
+    if(m_settingsManager) {
+        saveSettings();
+        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " +
+                                 QString::number(m_settingsManager->getWifiPort()));
+    }
+
+    m_connectionManager = ConnectionManager::getInstance();
+
+    // Initialize UI components
+    setupUi();
+    setupConnections();
+    setupIntervalSlider();
+
+    // Setup initialization commands
+    initializeCommands = {"ATZ", "ATSP0", "ATE0", "ATL0", "ATAT1", "ATH1"};
+
+    // Display initial status
+    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
+                             "x" + QString::number(desktopRect.height()));
+    ui->textTerminal->append("Press Connect Button");
+    ui->pushConnect->setFocus();
+
+    // Configure refresh timer
+    m_refreshTimer.setSingleShot(false);
+    connect(&m_refreshTimer, &QTimer::timeout, this, &MainWindow::refreshData);
+}
+
+MainWindow::~MainWindow()
+{
+    // Cleanup
+    if(m_refreshTimer.isActive()) {
+        m_refreshTimer.stop();
+    }
+
+    if(m_connectionManager) {
+        m_connectionManager->disConnectElm();
+    }
+
+    if(m_settingsManager) {
+        m_settingsManager->saveSettings();
+    }
+
+    delete ui;
+}
+
+void MainWindow::setupUi()
+{
+    // Set default command
+    ui->sendEdit->setText("0101");
+}
+
+void MainWindow::setupConnections()
+{
+    // Connect UI buttons
     connect(ui->pushConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
     connect(ui->pushSend, &QPushButton::clicked, this, &MainWindow::onSendClicked);
     connect(ui->pushRead, &QPushButton::clicked, this, &MainWindow::onReadClicked);
@@ -41,49 +96,13 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnReadTransFault, &QPushButton::clicked, this, &MainWindow::onReadTransFaultClicked);
     connect(ui->btnClearTransFault, &QPushButton::clicked, this, &MainWindow::onClearTransFaultClicked);
 
-    ui->sendEdit->setText("0101");
-
-    elm = new ELM();
-    elm->resetPids();
-
-    m_settingsManager = SettingsManager::getInstance();
-    if(m_settingsManager)
-    {       
-        saveSettings();
-        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " + QString::number(m_settingsManager->getWifiPort()));
-    }
-
-    m_connectionManager = ConnectionManager::getInstance();
-    if(m_connectionManager)
-    {
-        connect(m_connectionManager,&ConnectionManager::connected,this, &MainWindow::connected);
-        connect(m_connectionManager,&ConnectionManager::disconnected,this,&MainWindow::disconnected);
-        connect(m_connectionManager,&ConnectionManager::dataReceived,this,&MainWindow::dataReceived);
+    // Connect ConnectionManager signals
+    if(m_connectionManager) {
+        connect(m_connectionManager, &ConnectionManager::connected, this, &MainWindow::connected);
+        connect(m_connectionManager, &ConnectionManager::disconnected, this, &MainWindow::disconnected);
+        connect(m_connectionManager, &ConnectionManager::dataReceived, this, &MainWindow::dataReceived);
         connect(m_connectionManager, &ConnectionManager::stateChanged, this, &MainWindow::stateChanged);
     }
-
-    setupIntervalSlider();
-
-    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) + "x" + QString::number(desktopRect.height()));
-    ui->textTerminal->append("Press Connect Button");
-    ui->pushConnect->setFocus();
-}
-
-MainWindow::~MainWindow()
-{
-    if(m_connectionManager)
-    {
-        m_connectionManager->disConnectElm();
-        delete m_connectionManager;
-    }
-
-    if(m_settingsManager)
-    {
-        m_settingsManager->saveSettings();
-        delete m_settingsManager;
-    }
-
-    delete ui;
 }
 
 void MainWindow::applyStyles()
@@ -96,11 +115,11 @@ void MainWindow::applyStyles()
     const QString BORDER_COLOR = "#004C80";       // Mid marine blue
     const QString BACKGROUND_COLOR = "#003366";   // Main background
 
-    // Update main window background
+    // Main window background
     this->setStyleSheet(
         "QMainWindow {"
-        "    background-color: #003366;"  // Match ObdScan background
-        "}"
+        "    background-color: " + BACKGROUND_COLOR + ";"
+                             "}"
         );
 
     // Base button style
@@ -136,13 +155,14 @@ void MainWindow::applyStyles()
                                         "}"
                                         ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR));
 
-    // Standard buttons
+    // Apply styles to all standard buttons
     QList<QPushButton*> standardButtons = {
         ui->pushConnect, ui->pushSend, ui->pushRead,
         ui->pushSetProtocol, ui->pushGetProtocol, ui->pushClear,
         ui->pushScan, ui->pushReadFault, ui->btnReadTransFault, ui->btnClearTransFault,
         ui->pushClearFault, ui->pushExit
     };
+
     for (auto* button : standardButtons) {
         button->setStyleSheet(buttonBaseStyle);
     }
@@ -201,7 +221,7 @@ void MainWindow::applyStyles()
                                          "}"
                                          ));
 
-    // Interval slider style with marine theme
+    // Interval slider style
     ui->labelInterval->setStyleSheet(QString(
                                          "QLabel {"
                                          "    font-size: 28px;"
@@ -254,8 +274,30 @@ void MainWindow::applyStyles()
                                               ));
 }
 
+void MainWindow::setupIntervalSlider()
+{
+    // Configure slider properties
+    ui->intervalSlider->setMinimum(1);
+    ui->intervalSlider->setMaximum(100);
+    ui->intervalSlider->setSingleStep(5);
+    ui->intervalSlider->setTickInterval(5);
+    ui->intervalSlider->setTickPosition(QSlider::TicksBelow);
+    ui->intervalSlider->setMinimumHeight(50);  // Taller for touch
+
+    // Set label alignment
+    ui->labelInterval->setAlignment(Qt::AlignCenter);
+
+    // Set initial value
+    interval = 100;  // Default 100ms
+    ui->intervalSlider->setValue(interval / 10);  // Convert to slider range
+    ui->labelInterval->setText(QString("%1 ms").arg(interval));
+
+    // Connect signal
+    connect(ui->intervalSlider, &QSlider::valueChanged, this, &MainWindow::onIntervalSliderChanged);
+}
+
 void MainWindow::connected()
-{    
+{
     ui->pushConnect->setText(QString("Disconnect"));
     commandOrder = 0;
     m_initialized = false;
@@ -266,6 +308,11 @@ void MainWindow::connected()
 
 void MainWindow::disconnected()
 {
+    // Stop auto-refresh if active
+    if (m_refreshTimer.isActive()) {
+        m_refreshTimer.stop();
+    }
+
     ui->pushConnect->setText(QString("Connect"));
     commandOrder = 0;
     m_initialized = false;
@@ -273,76 +320,50 @@ void MainWindow::disconnected()
     ui->textTerminal->append("Elm DisConnected");
 }
 
-void MainWindow::getPids()
-{
-    if(!m_connected)
-        return;
-
-    runtimeCommands.clear();
-    elm->resetPids();
-    ui->textTerminal->append("-> Searching available pids.");
-    QString supportedPIDs = elm->get_available_pids();
-    ui->textTerminal->append("<- Pids:  " + supportedPIDs);
-
-    if(!supportedPIDs.isEmpty())
-    {
-        if(supportedPIDs.contains(","))
-        {
-            runtimeCommands.append(supportedPIDs.split(","));
-            QString str = runtimeCommands.join("");
-            str = runtimeCommands.join(", ");
-        }
-    }
-}
-
 void MainWindow::dataReceived(QString data)
 {
     if(m_reading)
         return;
 
+    // Clean the data
     data.remove("\r");
     data.remove(">");
     data.remove("?");
     data.remove(",");
 
-    if(isError(data.toUpper().toStdString()))
-    {
+    // Check for errors
+    if(isError(data.toUpper().toStdString())) {
         ui->textTerminal->append("Error : " + data);
     }
-    else if (!data.isEmpty())
-    {
+    else if (!data.isEmpty()) {
         ui->textTerminal->append("<- " + data);
     }
 
-    if(!m_initialized && initializeCommands.size() == commandOrder)
-    {
+    // Handle initialization sequence
+    if(!m_initialized && initializeCommands.size() == commandOrder) {
         commandOrder = 0;
         m_initialized = true;
 
-        if(m_searchPidsEnable)
-        {
+        if(m_searchPidsEnable) {
             getPids();
         }
     }
-    else if(!m_initialized && commandOrder < initializeCommands.size())
-    {
+    else if(!m_initialized && commandOrder < initializeCommands.size()) {
         send(initializeCommands[commandOrder]);
         commandOrder++;
     }
 
-    if(m_initialized && !data.isEmpty())
-    {
-
-        try
-        {
+    // Process the data if initialized
+    if(m_initialized && !data.isEmpty()) {
+        try {
             data = cleanData(data);
             analysData(data);
         }
-        catch (const std::exception& e)
-        {
+        catch (const std::exception& e) {
+            qDebug() << "Exception in data analysis: " << e.what();
         }
-        catch (...)
-        {
+        catch (...) {
+            qDebug() << "Unknown exception in data analysis";
         }
     }
 }
@@ -357,128 +378,80 @@ QString MainWindow::cleanData(const QString& input)
 
 void MainWindow::stateChanged(QString state)
 {
-   ui->textTerminal->append(state);
+    ui->textTerminal->append(state);
 }
 
 QString MainWindow::send(const QString &command)
 {
-    if(m_connectionManager && m_connected)
-    {
+    if(m_connectionManager && m_connected) {
         auto cmd = cleanData(command);
         ui->textTerminal->append("-> " + cmd);
 
         m_connectionManager->send(cmd);
-        QThread::msleep(5);
+        QThread::msleep(5);  // Small delay for processing
     }
 
     return QString();
 }
 
+void MainWindow::getPids()
+{
+    if(!m_connected)
+        return;
+
+    runtimeCommands.clear();
+    elm->resetPids();
+    ui->textTerminal->append("-> Searching available pids.");
+
+    QString supportedPIDs = elm->get_available_pids();
+    ui->textTerminal->append("<- Pids:  " + supportedPIDs);
+
+    if(!supportedPIDs.isEmpty()) {
+        if(supportedPIDs.contains(",")) {
+            runtimeCommands = supportedPIDs.split(",");
+        }
+    }
+}
+
 bool MainWindow::isError(std::string msg) {
-    std::vector<std::string> errors(ERROR, ERROR + 18);
-    for(unsigned int i=0; i < errors.size(); i++) {
-        if(msg.find(errors[i]) != std::string::npos)
+    static const std::vector<std::string> errors(ERROR, ERROR + 18);
+    for(const auto& error : errors) {
+        if(msg.find(error) != std::string::npos)
             return true;
     }
     return false;
-}
-
-void MainWindow::setupIntervalSlider()
-{
-    ui->intervalSlider->setMinimum(1);
-    ui->intervalSlider->setMaximum(100);
-    ui->intervalSlider->setSingleStep(5);
-    ui->intervalSlider->setTickInterval(5);
-    ui->intervalSlider->setTickPosition(QSlider::TicksBelow);
-
-    ui->labelInterval->setAlignment(Qt::AlignCenter);
-    ui->labelInterval->setStyleSheet(
-        "QLabel {"
-        "    font-size: 28px;"
-        "    font-weight: bold;"
-        "    color: #2196F3;"
-        "    padding: 3px;"
-        "    background-color:#313244;"
-        "    border-radius: 3px;"
-        "    margin: 3px;"
-        "}"
-        );
-
-    ui->intervalSlider->setMinimumHeight(50);  // Taller for touch
-    ui->intervalSlider->setStyleSheet(
-        "QSlider::groove:horizontal {"
-        "    border: none;"
-        "    height: 20px;"
-        "    background: #E0E0E0;"
-        "    border-radius: 5px;"
-        "    margin: 0px;"
-        "}"
-        "QSlider::handle:horizontal {"
-        "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-        "        stop:0 #2196F3, stop:1 #1976D2);"
-        "    border: none;"
-        "    width: 30px;"  // Wider handle for touch
-        "    margin: -5px 0;"
-        "    border-radius: 10px;"
-        "}"
-        "QSlider::sub-page:horizontal {"
-        "    background: #2196F3;"
-        "    border-radius: 5px;"
-        "}"
-        "QSlider::add-page:horizontal {"
-        "    background: #E0E0E0;"
-        "    border-radius: 5px;"
-        "}"
-        "QSlider::tick-mark {"
-        "    background: #757575;"
-        "    width: 2px;"
-        "    height: 5px;"
-        "    margin-top: 5px;"
-        "}"
-        );
-
-    // Set initial value (convert your interval to 0-100 range)
-    int initialValue = 10;  // or whatever default you want
-    ui->intervalSlider->setValue(initialValue);
-
-    // Connect signal
-    connect(ui->intervalSlider, &QSlider::valueChanged,
-            this, &MainWindow::onIntervalSliderChanged);
-
-    // Initial label update
-    ui->labelInterval->setText(QString("%1 ms").arg(interval));
 }
 
 QString MainWindow::getData(const QString &command)
 {
     auto dataReceived = ConnectionManager::getInstance()->readData(command);
 
+    // Clean up the response
     dataReceived.remove("\r");
     dataReceived.remove(">");
     dataReceived.remove("?");
     dataReceived.remove(",");
 
-    if(isError(dataReceived.toUpper().toStdString()))
-    {
+    if(isError(dataReceived.toUpper().toStdString())) {
         QThread::msleep(500);
         return "error";
     }
 
-    //dataReceived = cleanData(dataReceived);
     return dataReceived;
 }
 
 void MainWindow::saveSettings()
 {
-    //QString ip = "192.168.0.10";
-    QString ip = "192.168.1.27";
-    // elm -n 35000 -s car
-    quint16 wifiPort = 35000;
-    m_settingsManager->setWifiIp(ip);
-    m_settingsManager->setWifiPort(wifiPort);
-    m_settingsManager->setSerialPort("/dev/ttys001");
-    m_settingsManager->setEngineDisplacement(2700);
-    m_settingsManager->saveSettings();
+    QString ip = "192.168.1.27";  // Default IP
+    quint16 wifiPort = 35000;     // Default port
+
+    if (m_settingsManager) {
+        m_settingsManager->setWifiIp(ip);
+        m_settingsManager->setWifiPort(wifiPort);
+        m_settingsManager->setSerialPort("/dev/ttys001");
+        m_settingsManager->setEngineDisplacement(2700);
+        m_settingsManager->saveSettings();
+    }
 }
 
 void MainWindow::analysData(const QString &dataReceived)
@@ -492,8 +465,7 @@ void MainWindow::analysData(const QString &dataReceived)
     auto resp = elm->prepareResponseToDecode(dataReceived);
 
     // Handle standard PID responses (41 XX ...)
-    if(resp.size() > 2 && !resp[0].compare("41", Qt::CaseInsensitive))
-    {
+    if(resp.size() > 2 && !resp[0].compare("41", Qt::CaseInsensitive)) {
         // Validate PID format
         QRegularExpression hexMatcher("^[0-9A-F]{2}$", QRegularExpression::CaseInsensitiveOption);
         QRegularExpressionMatch match = hexMatcher.match(resp[1]);
@@ -511,8 +483,7 @@ void MainWindow::analysData(const QString &dataReceived)
             vec.clear();  // Clear vector before inserting new data
             vec.insert(vec.begin(), resp.begin() + 2, resp.end());
 
-            if(vec.size() >= 2)
-            {
+            if(vec.size() >= 2) {
                 // Safe conversion of A and B with range checks
                 unsigned long aTemp = std::stoul(vec[0].toStdString(), nullptr, 16);
                 unsigned long bTemp = std::stoul(vec[1].toStdString(), nullptr, 16);
@@ -524,8 +495,7 @@ void MainWindow::analysData(const QString &dataReceived)
                     return;  // Invalid A or B values
                 }
             }
-            else if(vec.size() >= 1)
-            {
+            else if(vec.size() >= 1) {
                 // Safe conversion of A with range check
                 unsigned long aTemp = std::stoul(vec[0].toStdString(), nullptr, 16);
                 if (aTemp <= 0xFF) {
@@ -535,7 +505,9 @@ void MainWindow::analysData(const QString &dataReceived)
                     return;  // Invalid A value
                 }
             }
-            ui->textTerminal->append("Pid: " + QString::number(PID) + "  A: " + QString::number(A) + "  B: " + QString::number(B));
+            ui->textTerminal->append("Pid: " + QString::number(PID) +
+                                     "  A: " + QString::number(A) +
+                                     "  B: " + QString::number(B));
         }
         catch (const std::exception& e) {
             ui->textTerminal->append("Error parsing data: " + QString(e.what()));
@@ -545,8 +517,7 @@ void MainWindow::analysData(const QString &dataReceived)
 
     // Handle Mode 01 PID 01 (number of DTCs and MIL status)
     if(resp.size() > 2 && !resp[0].compare("41", Qt::CaseInsensitive) &&
-        !resp[1].compare("01", Qt::CaseInsensitive))
-    {
+        !resp[1].compare("01", Qt::CaseInsensitive)) {
         vec.clear();  // Clear vector before inserting new data
         vec.insert(vec.begin(), resp.begin() + 2, resp.end());
         std::pair<int, bool> dtcNumber = elm->decodeNumberOfDtc(vec);
@@ -554,39 +525,122 @@ void MainWindow::analysData(const QString &dataReceived)
         ui->textTerminal->append("Number of DTCs: " + QString::number(dtcNumber.first) +
                                  ", MIL on: " + milText);
     }
-    // Handle Mode 03 (DTC codes)
-    if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive))
-    {
-        vec.clear();  // Clear vector before inserting new data
-        vec.insert(vec.begin(), resp.begin() + 1, resp.end());
+
+    // Handle Mode 03 (DTC codes) - CAN format with ECU ID (e.g. 7E8 02 43 ...)
+    if(resp.size() > 3 &&
+        resp[0].length() == 3 && resp[0].startsWith("7", Qt::CaseInsensitive) &&
+        resp[2].compare("43", Qt::CaseInsensitive) == 0) {
+
+        // This is a CAN format response with ECU ID
+        ui->textTerminal->append("CAN format DTC response detected from ECU: " + resp[0]);
+
+        vec.clear();
+        // Skip ECU ID (7Ex), byte count, and response code (43)
+        vec.insert(vec.begin(), resp.begin() + 3, resp.end());
+
+        // Debug output
+        QString debugStr = "Parsing bytes: ";
+        for(const auto& val : vec) {
+            debugStr += val + " ";
+        }
+        ui->textTerminal->append(debugStr);
+
+        // Process DTCs
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
-        if(!dtcCodes.empty())
-        {
-            QString dtc_list = "DTCs: ";
-            for(const auto &code : dtcCodes)
-            {
+        if(!dtcCodes.empty()) {
+            QString dtc_list = "DTCs from ECU " + resp[0] + ": ";
+            for(const auto &code : dtcCodes) {
                 dtc_list.append(code + " ");
             }
             ui->textTerminal->append(dtc_list);
         }
-        else
-        {
+        else {
+            ui->textTerminal->append("No DTCs reported from ECU " + resp[0]);
+        }
+    }
+    // Handle standard Mode 03 (DTC codes) response without CAN headers
+    else if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive)) {
+        vec.clear();  // Clear vector before inserting new data
+        vec.insert(vec.begin(), resp.begin() + 1, resp.end());
+
+        // Debug output
+        QString debugStr = "Parsing bytes: ";
+        for(const auto& val : vec) {
+            debugStr += val + " ";
+        }
+        ui->textTerminal->append(debugStr);
+
+        std::vector<QString> dtcCodes = elm->decodeDTC(vec);
+        if(!dtcCodes.empty()) {
+            QString dtc_list = "DTCs: ";
+            for(const auto &code : dtcCodes) {
+                dtc_list.append(code + " ");
+            }
+            ui->textTerminal->append(dtc_list);
+        }
+        else {
             ui->textTerminal->append("Number of DTCs: 0");
         }
     }
 }
 
+void MainWindow::refreshData()
+{
+    // Skip if not connected or busy reading
+    if (!m_connected || m_reading) {
+        return;
+    }
+
+    // Get next command in the runtimeCommands list
+    if (!runtimeCommands.isEmpty() && commandOrder < runtimeCommands.size()) {
+        m_reading = true;
+        QString cmd = runtimeCommands[commandOrder];
+        auto data = getData(cmd);
+
+        // Process response
+        if (!data.isEmpty() && data != "error") {
+            ui->textTerminal->append("<- " + data);
+            try {
+                analysData(data);
+            } catch (...) {
+                qDebug() << "Error processing refresh data";
+            }
+        }
+
+        m_reading = false;
+        commandOrder = (commandOrder + 1) % runtimeCommands.size();  // Cycle through commands
+    }
+}
+
+void MainWindow::startAutoRefresh()
+{
+    if (!m_refreshTimer.isActive() && m_connected && !runtimeCommands.isEmpty()) {
+        m_refreshTimer.start(interval);
+        m_autoRefresh = true;
+        ui->textTerminal->append("Auto-refresh started");
+    }
+}
+
+void MainWindow::stopAutoRefresh()
+{
+    if (m_refreshTimer.isActive()) {
+        m_refreshTimer.stop();
+        m_autoRefresh = false;
+        ui->textTerminal->append("Auto-refresh stopped");
+    }
+}
+
+// UI Event Handlers
+
 void MainWindow::onConnectClicked()
 {
-    if(ui->pushConnect->text() == "Connect")
-    {
+    if(ui->pushConnect->text() == "Connect") {
         QCoreApplication::processEvents();
         ui->textTerminal->clear();
         if(m_connectionManager)
             m_connectionManager->connectElm();
     }
-    else
-    {
+    else {
         if(m_connectionManager)
             m_connectionManager->disConnectElm();
     }
@@ -610,12 +664,10 @@ void MainWindow::onReadClicked()
     QString command = ui->sendEdit->text();
     auto data = getData(command);
 
-    if(isError(data.toUpper().toStdString()))
-    {
+    if(isError(data.toUpper().toStdString())) {
         ui->textTerminal->append("Error : " + data);
     }
-    else if (!data.isEmpty())
-    {
+    else if (!data.isEmpty()) {
         ui->textTerminal->append("<- " + data);
     }
 
@@ -653,11 +705,12 @@ void MainWindow::onClearClicked()
     runtimeCommands.clear();
 
     ui->textTerminal->clear();
-    if(m_settingsManager)
-    {
-        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " + QString::number(m_settingsManager->getWifiPort()));
+    if(m_settingsManager) {
+        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " +
+                                 QString::number(m_settingsManager->getWifiPort()));
     }
-    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) + "x" + QString::number(desktopRect.height()));
+    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
+                             "x" + QString::number(desktopRect.height()));
 }
 
 void MainWindow::onReadFaultClicked()
@@ -670,12 +723,6 @@ void MainWindow::onReadFaultClicked()
     send("ATSH 7E0");  // Set header for engine ECU
     QThread::msleep(60);
     send(READ_TROUBLE);
-
-    // // Then read transmission DTCs
-    // ui->textTerminal->append("-> Reading transmission trouble codes...");
-    // send("ATSH 7E1");  // Set header for transmission ECU
-    // QThread::msleep(60);
-    // send(READ_TRANSMISSION);
 }
 
 void MainWindow::onClearFaultClicked()
@@ -684,26 +731,20 @@ void MainWindow::onClearFaultClicked()
         return;
 
     ui->textTerminal->append("-> Clearing the trouble codes.");
+    send("ATSH 7E0");  // Make sure we're addressing the engine ECU
     QThread::msleep(60);
     send(CLEAR_TROUBLE);
 }
 
-void MainWindow::onScanClicked()
-{
-    ObdScan *obdScan = new ObdScan(this);
-    //obdScan->setGeometry(desktopRect);
-    obdScan->show();
-}
-
-// Add this function to read transmission DTCs
 void MainWindow::onReadTransFaultClicked()
 {
     if(!m_connected)
         return;
+
     ui->textTerminal->append("-> Reading transmission trouble codes...");
 
     // First try to select the transmission control module
-    send("ATSH 7E1");  // Set header for transmission ECU (may vary, check your specific model)
+    send("ATSH 7E1");  // Set header for transmission ECU
     QThread::msleep(100);
 
     // Read DTCs from transmission
@@ -711,15 +752,15 @@ void MainWindow::onReadTransFaultClicked()
     QThread::msleep(250);  // Longer delay for complete response
 }
 
-// Add this function to clear transmission DTCs
 void MainWindow::onClearTransFaultClicked()
 {
     if(!m_connected)
         return;
+
     ui->textTerminal->append("-> Clearing transmission trouble codes...");
 
     // First try to select the transmission control module
-    send("ATSH 7E1");  // Set header for transmission ECU (may vary, check your specific model)
+    send("ATSH 7E1");  // Set header for transmission ECU
     QThread::msleep(100);
 
     // Clear DTCs
@@ -729,10 +770,21 @@ void MainWindow::onClearTransFaultClicked()
     ui->textTerminal->append("Transmission codes cleared. Please cycle ignition.");
 }
 
+void MainWindow::onScanClicked()
+{
+    ObdScan *obdScan = new ObdScan(this);
+    obdScan->show();
+}
+
 void MainWindow::onIntervalSliderChanged(int value)
 {
-    interval = value * 10;  // This will give you 0-1000 ms range
+    interval = value * 10;  // Scale to 10-1000ms range
     ui->labelInterval->setText(QString("%1 ms").arg(interval));
+
+    // If auto-refresh is running, restart with new interval
+    if (m_refreshTimer.isActive()) {
+        m_refreshTimer.setInterval(interval);
+    }
 }
 
 void MainWindow::onSearchPidsStateChanged(int state)
@@ -743,13 +795,33 @@ void MainWindow::onSearchPidsStateChanged(int state)
     if (state == Qt::Checked) {
         m_searchPidsEnable = true;
         getPids();
+
+        // Optionally start auto-refresh if PIDs were found
+        if (!runtimeCommands.isEmpty() && !m_refreshTimer.isActive()) {
+            commandOrder = 0;
+            startAutoRefresh();
+        }
     } else {
         m_searchPidsEnable = false;
         runtimeCommands.clear();
+        stopAutoRefresh();
     }
 }
 
 void MainWindow::onExitClicked()
 {
+    // Stop auto-refresh if active
+    stopAutoRefresh();
+
+    // Disconnect if connected
+    if (m_connected && m_connectionManager) {
+        m_connectionManager->disConnectElm();
+    }
+
+    // Save settings before exit
+    if (m_settingsManager) {
+        m_settingsManager->saveSettings();
+    }
+
     QApplication::quit();
 }
