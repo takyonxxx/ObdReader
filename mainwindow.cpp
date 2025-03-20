@@ -501,8 +501,14 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    QString ip = "192.168.1.27";  // Default IP
-    quint16 wifiPort = 35000;     // Default port
+    QString ip;
+    quint16 wifiPort = 35000;
+
+#ifdef Q_OS_ANDROID
+    ip = "192.168.1.10";
+#else //windows sim elm.exe -n 35000 -s car
+    ip = "192.168.1.27"; // change to your local ip
+#endif
 
     if (m_settingsManager) {
         m_settingsManager->setWifiIp(ip);
