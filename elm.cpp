@@ -27,10 +27,29 @@ ELM *ELM::getInstance()
 
 ELM::ELM()
 {
+    // Initialize map for DTC prefix lookup
+    dtcPrefix['0'] = "P0";
+    dtcPrefix['1'] = "P1";
+    dtcPrefix['2'] = "P2";
+    dtcPrefix['3'] = "P3";
+    dtcPrefix['4'] = "C0";
+    dtcPrefix['5'] = "C1";
+    dtcPrefix['6'] = "C2";
+    dtcPrefix['7'] = "C3";
+    dtcPrefix['8'] = "B0";
+    dtcPrefix['9'] = "B1";
+    dtcPrefix['A'] = "B2";
+    dtcPrefix['B'] = "B3";
+    dtcPrefix['C'] = "U0";
+    dtcPrefix['D'] = "U1";
+    dtcPrefix['E'] = "U2";
+    dtcPrefix['F'] = "U3";
+
+    resetPids();
 }
 
 std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
-{   
+{
     std::vector<QString> result;
     result.reserve(8);
     std::string str(response_str.toStdString());
@@ -47,42 +66,106 @@ std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
 std::vector<QString> ELM::decodeDTC(const std::vector<QString> &hex_vals)
 {
     std::vector<QString> dtc_codes;
-    QString dtc_code;
-    QString tmp_code;
-    for(int it=0;it<hex_vals.size();++it)
+
+    // Process hex values in pairs (each DTC is encoded in 2 bytes)
+    for(size_t i = 0; i < hex_vals.size(); i += 2)
     {
-        if(it%2!=0){
-            dtc_code.append(hex_vals[it]);
-            if(dtc_code.compare("P0000", Qt::CaseInsensitive)!=0)
-                dtc_codes.push_back(dtc_code);
-            tmp_code.clear();
-            dtc_code.clear();
+        // Make sure we have a complete pair
+        if(i + 1 >= hex_vals.size())
+            break;
+
+        QString byte1 = hex_vals[i];
+        QString byte2 = hex_vals[i + 1];
+
+        // Skip empty codes
+        if(byte1.isEmpty() || byte2.isEmpty())
+            continue;
+
+        // Skip "00" values which indicate no DTC data
+        if (byte1 == "00" && byte2 == "00")
+            continue;
+
+        // Get first character to determine DTC type (P, C, B, U)
+        char firstChar = byte1[0].toLatin1();
+
+        // Convert the first nibble to determine code type
+        int typeValue = 0;
+        if(firstChar >= '0' && firstChar <= '9')
+            typeValue = firstChar - '0';
+        else if(firstChar >= 'A' && firstChar <= 'F')
+            typeValue = 10 + (firstChar - 'A');
+
+        // Use the map for prefix lookup if available
+        QString dtc_code;
+        auto itMap = dtcPrefix.find(firstChar);
+        if (itMap != dtcPrefix.end()) {
+            dtc_code = (*itMap).second;
+
+            // Add the rest of the first byte (excluding the first character)
+            if(byte1.length() > 1) {
+                dtc_code.append(byte1.right(byte1.length() - 1));
+            }
+
+            // Add the second byte
+            dtc_code.append(byte2);
+        } else {
+            // Fallback to the calculation method
+            QString prefix;
+            switch(typeValue >> 2) {  // Get the first 2 bits of the nibble
+            case 0: prefix = "P"; break;
+            case 1: prefix = "C"; break;
+            case 2: prefix = "B"; break;
+            case 3: prefix = "U"; break;
+            default: prefix = "P"; break;
+            }
+
+            // Build the DTC code
+            dtc_code = prefix;
+
+            // Add the second bit of the first nibble to determine if standard or manufacturer specific
+            dtc_code.append(QString::number((typeValue >> 1) & 0x01));
+
+            // Add the rest of the first byte (excluding the first nibble we already processed)
+            if(byte1.length() > 1) {
+                dtc_code.append(byte1.right(byte1.length() - 1));
+            }
+
+            // Add the second byte
+            dtc_code.append(byte2);
         }
-        else{
-            tmp_code.append(hex_vals[it]);
-            char x=tmp_code.toStdString()[0];
-            auto itMap = this->dtcPrefix.find(x);
-            dtc_code.append((*itMap).second);
-            dtc_code.append(tmp_code[1]);
+
+        // Don't add P0000 (no trouble code)
+        if(dtc_code.compare("P0000", Qt::CaseInsensitive) != 0) {
+            dtc_codes.push_back(dtc_code);
         }
     }
 
     return dtc_codes;
 }
 
-std::pair<int,bool> ELM::decodeNumberOfDtc(const std::vector<QString> &hex_vals)
+std::pair<int, bool> ELM::decodeNumberOfDtc(const std::vector<QString> &hex_vals)
 {
-    int dtcNumber=0;
-    bool milOn= false;
-    int number= std::stoi(hex_vals[0].toStdString(),nullptr,16);
-    if(number-128 < 0) {
-        dtcNumber=number;
+    int dtcNumber = 0;
+    bool milOn = false;
+
+    if(hex_vals.empty())
+        return std::make_pair(dtcNumber, milOn);
+
+    // First byte contains both MIL status (bit 7) and number of DTCs (bits 0-6)
+    try {
+        int firstByte = std::stoi(hex_vals[0].toStdString(), nullptr, 16);
+
+        // Check if MIL is on (bit 7 set)
+        milOn = (firstByte & 0x80) != 0;
+
+        // DTCs are in bits 0-6
+        dtcNumber = firstByte & 0x7F;
+    } catch (const std::exception& e) {
+        // Handle conversion error
+        qDebug() << "Error converting hex value:" << hex_vals[0] << " - " << e.what();
     }
-    else{
-        dtcNumber=number-128;
-        milOn=true;
-    }
-    return std::make_pair(dtcNumber,milOn);
+
+    return std::make_pair(dtcNumber, milOn);
 }
 
 void ELM::resetPids()
@@ -91,26 +174,31 @@ void ELM::resetPids()
     for (int h = 0; h < 256; h++) {
         available_pids[h] = false;
     }
+    available_pids_checked = false;
 }
 
 QString ELM::get_available_pids()
 {
-    update_available_pids();
+    if (!available_pids_checked) {
+        update_available_pids();
+    }
 
     QString data = "";
     bool first = true;
-    for (int i = 0; i <= 255; i++)
+    for (int i = 1; i <= 255; i++)  // Start from 1, not 0
     {
-        if (available_pids[i-1])
+        if (available_pids[i])
         {
             QString hexvalue = QString("01") + QString("%1").arg(i, 2, 16, QLatin1Char( '0' ));
 
+            // Skip the PID availability commands
             if(hexvalue != "0101" &&
-                    hexvalue != "0120" &&
-                    hexvalue != "0140" &&
-                    hexvalue != "0160" &&
-                    hexvalue != "0180" &&
-                    hexvalue != "01C0")
+                hexvalue != "0120" &&
+                hexvalue != "0140" &&
+                hexvalue != "0160" &&
+                hexvalue != "0180" &&
+                hexvalue != "01A0" &&
+                hexvalue != "01C0")
             {
                 if (first)
                 {
@@ -130,21 +218,23 @@ QString ELM::get_available_pids()
 
 void ELM::update_available_pids()
 {
+    resetPids();
+
     available_pids[0] = false; // PID0 is always supported and can't be checked for support
     update_available_pidset(1);
 
     // Check if pid 0x20 is available (meaning next set is supported)
-    if ( available_pids[0x20] ) {
+    if (available_pids[0x20]) {
         update_available_pidset(2);
-        if ( available_pids[0x40] ) {
+        if (available_pids[0x40]) {
             update_available_pidset(3);
-            if ( available_pids[0x60] ) {
+            if (available_pids[0x60]) {
                 update_available_pidset(4);
-                if ( available_pids[0x80] ) {
+                if (available_pids[0x80]) {
                     update_available_pidset(5);
-                    if ( available_pids[0xA0] ) {
+                    if (available_pids[0xA0]) {
                         update_available_pidset(6);
-                        if ( available_pids[0xC0] ) {
+                        if (available_pids[0xC0]) {
                             update_available_pidset(7);
                         }
                     }
@@ -194,51 +284,81 @@ void ELM::update_available_pidset(quint8 set)
         cmd1 = "0100";
         break;
     }
-    QString flags{};
-    // Get first set of pids
-    //QString cmd = "4100983B0011";
 
+    // Get PID support data
     QString cmd{};
+    int retryCount = 0;
+    const int maxRetries = 3;
 
-    while(cmd.isEmpty())
+    while(cmd.isEmpty() && retryCount < maxRetries)
     {
         cmd = ConnectionManager::getInstance()->readData(cmd1).toUpper();
         cmd = cleanData(cmd);
+        retryCount++;
+
+        if (cmd.isEmpty()) {
+            // Add a small delay before retry
+            QThread::msleep(100);
+        }
     }
 
     if(!cmd.startsWith(QString("41")))
     {
-        resetPids();
-        available_pids[3]  = true;  //04  Calculated engine load
-        available_pids[4]  = true;  //05  Engine coolant temperature
-        available_pids[10] = true;  //0B  Intake manifold absolute pressure
-        available_pids[11] = true;  //0C  Engine RPM
-        available_pids[12] = true;  //0D  Vehicle speed
-        available_pids[15] = true;  //0F  Maf air flow rate
+        // If we can't get proper PID support data, set some common PIDs as available
+        if (set == 1) {  // Only set defaults for the first set
+            available_pids[3]  = true;  // 04  Calculated engine load
+            available_pids[4]  = true;  // 05  Engine coolant temperature
+            available_pids[10] = true;  // 0B  Intake manifold absolute pressure
+            available_pids[11] = true;  // 0C  Engine RPM
+            available_pids[12] = true;  // 0D  Vehicle speed
+            available_pids[15] = true;  // 0F  Maf air flow rate
+        }
         return;
     }
 
     auto list = cmd.split("41");
     for(auto &item: list)
     {
-        QString setPart = item.mid(0,2);
+        if (item.isEmpty())
+            continue;
+
+        QString setPart;
+        if (item.length() >= 2) {
+            setPart = item.mid(0, 2);
+        } else {
+            continue;  // Skip invalid data
+        }
 
         // trim to continuous 32bit hex string
-        QString dataPart = item.mid(2, item.size());
-        const char *str;
-        QByteArray byteArray{};
-        byteArray = dataPart.toLatin1();
-        str = byteArray.data();
-        unsigned long longData = strtoul(str,nullptr,16);
-        auto binaryString = DecimalToBinaryString(longData);
-        int m = (set-1) * 32;
-        // fill supported pid list, ignor 0101
-        for (int i = 0; i < binaryString.length(); i++)
-        {
-            if (binaryString[i] == '1') {
-                available_pids[i+m] = true;
+        QString dataPart;
+        if (item.length() > 2) {
+            dataPart = item.mid(2);
+        } else {
+            continue;  // Skip if no data part
+        }
+
+        try {
+            const char *str;
+            QByteArray byteArray = dataPart.toLatin1();
+            str = byteArray.data();
+            unsigned long longData = strtoul(str, nullptr, 16);
+
+            if (errno == ERANGE) {
+                qDebug() << "Error: Number out of range when converting" << dataPart;
+                continue;
             }
+
+            auto binaryString = DecimalToBinaryString(longData);
+            int m = (set-1) * 32;
+
+            // fill supported pid list
+            for (int i = 0; i < binaryString.length() && i < 32; i++) {
+                if (binaryString[i] == '1') {
+                    available_pids[i+m+1] = true;  // +1 because PID numbers start at 1, not 0
+                }
+            }
+        } catch (const std::exception& e) {
+            qDebug() << "Error processing PID data:" << e.what();
         }
     }
 }
-

@@ -38,6 +38,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->pushScan, &QPushButton::clicked, this, &MainWindow::onScanClicked);
     connect(ui->pushExit, &QPushButton::clicked, this, &MainWindow::onExitClicked);
     connect(ui->checkSearchPids, &QCheckBox::stateChanged, this, &MainWindow::onSearchPidsStateChanged);
+    connect(ui->btnReadTransFault, &QPushButton::clicked, this, &MainWindow::onReadTransFaultClicked);
+    connect(ui->btnClearTransFault, &QPushButton::clicked, this, &MainWindow::onClearTransFaultClicked);
 
     ui->sendEdit->setText("0101");
 
@@ -138,7 +140,8 @@ void MainWindow::applyStyles()
     QList<QPushButton*> standardButtons = {
         ui->pushConnect, ui->pushSend, ui->pushRead,
         ui->pushSetProtocol, ui->pushGetProtocol, ui->pushClear,
-        ui->pushScan, ui->pushReadFault, ui->pushClearFault, ui->pushExit
+        ui->pushScan, ui->pushReadFault, ui->btnReadTransFault, ui->btnClearTransFault,
+        ui->pushClearFault, ui->pushExit
     };
     for (auto* button : standardButtons) {
         button->setStyleSheet(buttonBaseStyle);
@@ -467,8 +470,8 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    QString ip = "192.168.0.10";
-    //QString ip = "192.168.1.16";
+    //QString ip = "192.168.0.10";
+    QString ip = "192.168.1.27";
     // elm -n 35000 -s car
     quint16 wifiPort = 35000;
     m_settingsManager->setWifiIp(ip);
@@ -546,19 +549,16 @@ void MainWindow::analysData(const QString &dataReceived)
     {
         vec.clear();  // Clear vector before inserting new data
         vec.insert(vec.begin(), resp.begin() + 2, resp.end());
-
         std::pair<int, bool> dtcNumber = elm->decodeNumberOfDtc(vec);
         QString milText = dtcNumber.second ? "true" : "false";
         ui->textTerminal->append("Number of DTCs: " + QString::number(dtcNumber.first) +
                                  ", MIL on: " + milText);
     }
-
     // Handle Mode 03 (DTC codes)
     if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive))
     {
         vec.clear();  // Clear vector before inserting new data
         vec.insert(vec.begin(), resp.begin() + 1, resp.end());
-
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
         if(!dtcCodes.empty())
         {
@@ -665,9 +665,17 @@ void MainWindow::onReadFaultClicked()
     if(!m_connected)
         return;
 
-    ui->textTerminal->append("-> Reading the trouble codes.");
+    // First read engine DTCs
+    ui->textTerminal->append("-> Reading engine trouble codes...");
+    send("ATSH 7E0");  // Set header for engine ECU
     QThread::msleep(60);
     send(READ_TROUBLE);
+
+    // // Then read transmission DTCs
+    // ui->textTerminal->append("-> Reading transmission trouble codes...");
+    // send("ATSH 7E1");  // Set header for transmission ECU
+    // QThread::msleep(60);
+    // send(READ_TRANSMISSION);
 }
 
 void MainWindow::onClearFaultClicked()
@@ -685,6 +693,40 @@ void MainWindow::onScanClicked()
     ObdScan *obdScan = new ObdScan(this);
     //obdScan->setGeometry(desktopRect);
     obdScan->show();
+}
+
+// Add this function to read transmission DTCs
+void MainWindow::onReadTransFaultClicked()
+{
+    if(!m_connected)
+        return;
+    ui->textTerminal->append("-> Reading transmission trouble codes...");
+
+    // First try to select the transmission control module
+    send("ATSH 7E1");  // Set header for transmission ECU (may vary, check your specific model)
+    QThread::msleep(100);
+
+    // Read DTCs from transmission
+    send(READ_TRANSMISSION);
+    QThread::msleep(250);  // Longer delay for complete response
+}
+
+// Add this function to clear transmission DTCs
+void MainWindow::onClearTransFaultClicked()
+{
+    if(!m_connected)
+        return;
+    ui->textTerminal->append("-> Clearing transmission trouble codes...");
+
+    // First try to select the transmission control module
+    send("ATSH 7E1");  // Set header for transmission ECU (may vary, check your specific model)
+    QThread::msleep(100);
+
+    // Clear DTCs
+    send(CLEAR_TRANS_TROUBLE);
+    QThread::msleep(250);  // Wait for ECU to process
+
+    ui->textTerminal->append("Transmission codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onIntervalSliderChanged(int value)

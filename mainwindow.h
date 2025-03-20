@@ -44,6 +44,8 @@ private slots:
     void onIntervalSliderChanged(int value);
     void onExitClicked();
     void onSearchPidsStateChanged(int state);
+    void onReadTransFaultClicked();
+    void onClearTransFaultClicked();
 
 private:
     void saveSettings();

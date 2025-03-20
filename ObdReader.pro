@@ -41,6 +41,8 @@ contains(ANDROID_TARGET_ARCH,armeabi-v7a) {
 }
 
 #simulator https://github.com/Ircama/ELM327-emulator/releases
+#python3 -m pip install ELM327-emulator
+#C:\Users\MarenCompEng\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts\elm.exe -n 35000 -s car
 #elm -n 35000 -s car
 
 DISTFILES += \
