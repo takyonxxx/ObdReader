@@ -10,6 +10,13 @@
 #include "settingsmanager.h"
 #include "elm.h"
 
+#ifdef Q_OS_ANDROID
+#include <QCoreApplication>
+#include <QtCore/qjnienvironment.h>
+#include <QtCore/qjniobject.h>
+#include <QMessageBox>
+#endif
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -63,6 +70,9 @@ private:
     void getPids();
     QString cleanData(const QString& input);
     bool isError(std::string msg);
+#ifdef Q_OS_ANDROID
+    void requestAndroidPermissions();
+#endif
 
     // Command batch processing
     void sendNextCommand();

@@ -20,6 +20,10 @@ MainWindow::MainWindow(QWidget *parent)
     // Apply styling
     applyStyles();
 
+#ifdef Q_OS_ANDROID
+    requestAndroidPermissions();
+#endif
+
     // Set protocol default
     ui->protocolCombo->setCurrentIndex(3);
 
@@ -54,6 +58,61 @@ MainWindow::MainWindow(QWidget *parent)
     m_refreshTimer.setSingleShot(false);
     connect(&m_refreshTimer, &QTimer::timeout, this, &MainWindow::refreshData);
 }
+
+#ifdef Q_OS_ANDROID
+void MainWindow::requestAndroidPermissions()
+{
+    // Permission that requires runtime request (location)
+    const QStringList permissions {
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.CHANGE_WIFI_STATE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.WAKE_LOCK"
+    };
+
+    bool allPermissionsGranted = true;
+
+    // Check each permission
+    for (const QString &permission : permissions) {
+        QJniObject jPermission = QJniObject::fromString(permission);
+        QJniObject activity = QJniObject::callStaticObjectMethod(
+            "org/qtproject/qt/android/QtNative",
+            "activity",
+            "()Landroid/app/Activity;");
+
+        jint result = activity.callMethod<jint>(
+            "checkSelfPermission",
+            "(Ljava/lang/String;)I",
+            jPermission.object<jstring>());
+
+        if (result != 0) { // PERMISSION_GRANTED is 0
+            allPermissionsGranted = false;
+
+            // Request permission using JNI
+            jobjectArray permissionArray;
+            QJniEnvironment env;
+            jclass stringClass = env->FindClass("java/lang/String");
+            permissionArray = env->NewObjectArray(1, stringClass, nullptr);
+            env->SetObjectArrayElement(permissionArray, 0, jPermission.object<jstring>());
+
+            activity.callMethod<void>(
+                "requestPermissions",
+                "([Ljava/lang/String;I)V",
+                permissionArray,
+                0);
+        }
+    }
+
+    if (!allPermissionsGranted) {
+        QMessageBox::information(this, "Permissions Required",
+                                 "Location permissions are required for WiFi scanning.\n"
+                                 "Please grant the requested permissions.");
+    }
+}
+#endif
 
 MainWindow::~MainWindow()
 {

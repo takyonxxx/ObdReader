@@ -35,29 +35,15 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-contains(ANDROID_TARGET_ARCH,armeabi-v7a) {
-    ANDROID_PACKAGE_SOURCE_DIR = \
-        $$PWD/android
-}
-
 #simulator https://github.com/Ircama/ELM327-emulator/releases
 #python3 -m pip install ELM327-emulator
 #C:\Users\MarenCompEng\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\Scripts\elm.exe -n 35000 -s car
 #elm -n 35000 -s car
 
-DISTFILES += \
-    android/AndroidManifest.xml \
-    android/build.gradle \
-    android/gradle.properties \
-    android/gradle/wrapper/gradle-wrapper.jar \
-    android/gradle/wrapper/gradle-wrapper.properties \
-    android/gradlew \
-    android/gradlew.bat \
-    android/res/drawable-hdpi/icon.png \
-    android/res/drawable-ldpi/icon.png \
-    android/res/drawable-mdpi/icon.png \
-    android/res/drawable-xhdpi/icon.png \
-    android/res/drawable-xxhdpi/icon.png \
-    android/res/drawable-xxxhdpi/icon.png \
-    android/res/values/libs.xml \
-    android/res/xml/qtprovider_paths.xml
+contains(ANDROID_TARGET_ARCH,arm64-v8a) {
+    ANDROID_PACKAGE_SOURCE_DIR = \
+        $$PWD/android
+}
+
+RESOURCES += \
+    resources.qrc
