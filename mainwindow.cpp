@@ -799,19 +799,19 @@ void MainWindow::onSearchPidsStateChanged(int state)
         // Optionally start auto-refresh if PIDs were found
         if (!runtimeCommands.isEmpty() && !m_refreshTimer.isActive()) {
             commandOrder = 0;
-            startAutoRefresh();
+            //startAutoRefresh();
         }
     } else {
         m_searchPidsEnable = false;
         runtimeCommands.clear();
-        stopAutoRefresh();
+        //stopAutoRefresh();
     }
 }
 
 void MainWindow::onExitClicked()
 {
     // Stop auto-refresh if active
-    stopAutoRefresh();
+    //stopAutoRefresh();
 
     // Disconnect if connected
     if (m_connected && m_connectionManager) {

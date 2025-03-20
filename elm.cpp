@@ -51,15 +51,173 @@ ELM::ELM()
 std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
 {
     std::vector<QString> result;
-    result.reserve(8);
-    std::string str(response_str.toStdString());
+    result.reserve(16); // Reserve space for typical response size
 
-    size_t start=0;
-    while(start < str.length()){
-        std::string hex_str=str.substr(start,2);
-        result.push_back(QString(hex_str.c_str()));
-        start +=2;
+    // Clean the input string
+    QString cleanedResponse = response_str.trimmed();
+
+    // Special case for raw CAN responses like "7E8034105F"
+    if (cleanedResponse.startsWith("7E", Qt::CaseInsensitive) && !cleanedResponse.contains(" ")) {
+        // Insert spaces for better processing (7E8034105F -> 7E8 03 41 05 5F)
+        QString spacedResponse;
+
+        // First 3 characters are usually the ECU ID
+        if (cleanedResponse.length() >= 3) {
+            spacedResponse = cleanedResponse.left(3) + " ";
+        }
+
+        // Insert spaces every 2 characters after the ECU ID
+        for (int i = 3; i < cleanedResponse.length(); i += 2) {
+            if (i + 1 < cleanedResponse.length()) {
+                spacedResponse += cleanedResponse.mid(i, 2) + " ";
+            } else {
+                spacedResponse += cleanedResponse.mid(i, 1);
+            }
+        }
+
+        cleanedResponse = spacedResponse.trimmed();
     }
+
+    // Handle CAN format responses (e.g., "7E8 03 41 0C 20 00")
+    if (cleanedResponse.startsWith("7E", Qt::CaseInsensitive) && cleanedResponse.contains(" ")) {
+        QStringList parts = cleanedResponse.split(" ", Qt::SkipEmptyParts);
+
+        // Check if it's a valid CAN response with enough parts
+        if (parts.size() >= 3) {
+            // Find index of mode response (41, 42, etc.)
+            int modeIndex = -1;
+            for (int i = 0; i < parts.size(); i++) {
+                if (parts[i].startsWith("4", Qt::CaseInsensitive) && parts[i].length() == 2) {
+                    // Mode responses are 41 (mode 1), 42 (mode 2), etc.
+                    char secondChar = parts[i].at(1).toLatin1();
+                    if ((secondChar >= '0' && secondChar <= '9') ||
+                        (secondChar >= 'A' && secondChar <= 'F')) {
+                        modeIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // If we found a mode response, extract it and following data
+            if (modeIndex >= 0) {
+                // Extract mode, PID, and data bytes
+                for (int i = modeIndex; i < parts.size(); i++) {
+                    if (!parts[i].isEmpty()) {
+                        result.push_back(parts[i]);
+                    }
+                }
+                return result;
+            }
+        }
+    }
+
+    // Handle ISO 9141-2, ISO 14230-4 (KWP2000), and generic responses
+    // These typically come in formats like "41 0C 20 00" without header bytes
+    if (cleanedResponse.contains(QRegularExpression("^[0-9A-F]{2} [0-9A-F]{2}",
+                                                    QRegularExpression::CaseInsensitiveOption))) {
+        QStringList parts = cleanedResponse.split(" ", Qt::SkipEmptyParts);
+
+        // Check if it's a valid OBD response
+        if (parts.size() >= 2) {
+            // Handle standard responses
+            if (parts[0].startsWith("4", Qt::CaseInsensitive) && parts[0].length() == 2) {
+                // Add all parts to result
+                for (const auto& part : parts) {
+                    if (!part.isEmpty()) {
+                        result.push_back(part);
+                    }
+                }
+
+                qDebug() << "Standard format decoded:";
+                for (const auto& item : result) {
+                    qDebug() << "  " << item;
+                }
+
+                return result;
+            }
+        }
+    }
+
+    // Handle SAE J1850 PWM, SAE J1850 VPW, and raw unspaced responses
+    // These might come as continuous hex strings like "410C2000"
+    if (cleanedResponse.contains(QRegularExpression("^[0-9A-F]{4,}",
+                                                    QRegularExpression::CaseInsensitiveOption))) {
+        // Check if it starts with a valid mode response
+        if (cleanedResponse.startsWith("41", Qt::CaseInsensitive) ||
+            cleanedResponse.startsWith("42", Qt::CaseInsensitive) ||
+            cleanedResponse.startsWith("43", Qt::CaseInsensitive) ||
+            cleanedResponse.startsWith("44", Qt::CaseInsensitive) ||
+            cleanedResponse.startsWith("45", Qt::CaseInsensitive) ||
+            cleanedResponse.startsWith("46", Qt::CaseInsensitive)) {
+
+            // Split into 2-character chunks
+            for (int i = 0; i < cleanedResponse.length(); i += 2) {
+                if (i + 1 < cleanedResponse.length()) {
+                    result.push_back(cleanedResponse.mid(i, 2));
+                }
+            }
+
+            qDebug() << "Continuous format decoded:";
+            for (const auto& item : result) {
+                qDebug() << "  " << item;
+            }
+
+            return result;
+        }
+    }
+
+    // Handle multiline responses and merge them if needed
+    if (cleanedResponse.contains(">") || cleanedResponse.contains("\r")) {
+        QStringList lines = cleanedResponse.split(QRegularExpression("[>\r\n]"), Qt::SkipEmptyParts);
+        QString mergedResponse;
+
+        for (const auto& line : lines) {
+            mergedResponse += line.trimmed() + " ";
+        }
+
+        // Recursively process the merged response
+        return prepareResponseToDecode(mergedResponse.trimmed());
+    }
+
+    // Final fallback - if we can't identify the format but the string is longer than 4 chars
+    // Try to extract a mode response (41, 42, etc.) from anywhere in the string
+    if (cleanedResponse.length() > 4) {
+        for (int i = 0; i < cleanedResponse.length() - 1; i++) {
+            QString potential = cleanedResponse.mid(i, 2);
+            if (potential.startsWith("4", Qt::CaseInsensitive)) {
+                char secondChar = potential.at(1).toLatin1();
+                if ((secondChar >= '0' && secondChar <= '9') ||
+                    (secondChar >= 'A' && secondChar <= 'F')) {
+
+                    // Found a potential mode response - extract from here to the end
+                    QString subResponse = cleanedResponse.mid(i);
+
+                    // Split into 2-character chunks
+                    for (int j = 0; j < subResponse.length(); j += 2) {
+                        if (j + 1 < subResponse.length()) {
+                            result.push_back(subResponse.mid(j, 2));
+                        }
+                    }
+
+                    if (!result.empty()) {
+                        return result;
+                    }
+                }
+            }
+        }
+    }
+
+    // Absolute last resort - just split the entire string into 2-char chunks
+    if (result.empty()) {
+        for (int i = 0; i < cleanedResponse.length(); i += 2) {
+            if (i + 1 < cleanedResponse.length()) {
+                result.push_back(cleanedResponse.mid(i, 2));
+            } else if (i < cleanedResponse.length()) {
+                result.push_back(cleanedResponse.mid(i, 1));
+            }
+        }
+    }  
+
     return result;
 }
 
