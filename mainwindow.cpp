@@ -1,8 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "obdscan.h"
-#include "global.h"
 
+#include "global.h"
 QStringList runtimeCommands;
 int interval = 10;
 
@@ -19,10 +19,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Apply styling
     applyStyles();
-
-#ifdef Q_OS_ANDROID
-    requestAndroidPermissions();
-#endif
 
     // Set protocol default
     ui->protocolCombo->setCurrentIndex(3);
@@ -53,74 +49,10 @@ MainWindow::MainWindow(QWidget *parent)
                              "x" + QString::number(desktopRect.height()));
     ui->textTerminal->append("Press Connect Button");
     ui->pushConnect->setFocus();
-
-    // Configure refresh timer
-    m_refreshTimer.setSingleShot(false);
-    connect(&m_refreshTimer, &QTimer::timeout, this, &MainWindow::refreshData);
 }
-
-#ifdef Q_OS_ANDROID
-void MainWindow::requestAndroidPermissions()
-{
-    // Permission that requires runtime request (location)
-    const QStringList permissions {
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.ACCESS_WIFI_STATE",
-        "android.permission.CHANGE_WIFI_STATE",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.WAKE_LOCK"
-    };
-
-    bool allPermissionsGranted = true;
-
-    // Check each permission
-    for (const QString &permission : permissions) {
-        QJniObject jPermission = QJniObject::fromString(permission);
-        QJniObject activity = QJniObject::callStaticObjectMethod(
-            "org/qtproject/qt/android/QtNative",
-            "activity",
-            "()Landroid/app/Activity;");
-
-        jint result = activity.callMethod<jint>(
-            "checkSelfPermission",
-            "(Ljava/lang/String;)I",
-            jPermission.object<jstring>());
-
-        if (result != 0) { // PERMISSION_GRANTED is 0
-            allPermissionsGranted = false;
-
-            // Request permission using JNI
-            jobjectArray permissionArray;
-            QJniEnvironment env;
-            jclass stringClass = env->FindClass("java/lang/String");
-            permissionArray = env->NewObjectArray(1, stringClass, nullptr);
-            env->SetObjectArrayElement(permissionArray, 0, jPermission.object<jstring>());
-
-            activity.callMethod<void>(
-                "requestPermissions",
-                "([Ljava/lang/String;I)V",
-                permissionArray,
-                0);
-        }
-    }
-
-    if (!allPermissionsGranted) {
-        QMessageBox::information(this, "Permissions Required",
-                                 "Location permissions are required for WiFi scanning.\n"
-                                 "Please grant the requested permissions.");
-    }
-}
-#endif
 
 MainWindow::~MainWindow()
 {
-    // Cleanup
-    if(m_refreshTimer.isActive()) {
-        m_refreshTimer.stop();
-    }
-
     if(m_connectionManager) {
         m_connectionManager->disConnectElm();
     }
@@ -369,11 +301,6 @@ void MainWindow::connected()
 
 void MainWindow::disconnected()
 {
-    // Stop auto-refresh if active
-    if (m_refreshTimer.isActive()) {
-        m_refreshTimer.stop();
-    }
-
     ui->pushConnect->setText(QString("Connect"));
     commandOrder = 0;
     m_initialized = false;
@@ -442,6 +369,7 @@ void MainWindow::stateChanged(QString state)
     ui->textTerminal->append(state);
 }
 
+
 QString MainWindow::send(const QString &command)
 {
     if(m_connectionManager && m_connected) {
@@ -475,9 +403,9 @@ void MainWindow::getPids()
 }
 
 bool MainWindow::isError(std::string msg) {
-    static const std::vector<std::string> errors(ERROR, ERROR + 18);
-    for(const auto& error : errors) {
-        if(msg.find(error) != std::string::npos)
+    std::vector<std::string> errors(ERROR, ERROR + 18);
+    for(unsigned int i=0; i < errors.size(); i++) {
+        if(msg.find(errors[i]) != std::string::npos)
             return true;
     }
     return false;
@@ -503,14 +431,9 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-    QString ip;
+    QString ip = "192.168.0.10";
+    // elm -n 35000 -s car
     quint16 wifiPort = 35000;
-
-#ifdef Q_OS_ANDROID
-    ip = "192.168.1.10";
-#else //windows sim elm.exe -n 35000 -s car
-    ip = "192.168.1.27"; // change to your local ip
-#endif
 
     if (m_settingsManager) {
         m_settingsManager->setWifiIp(ip);
@@ -650,54 +573,6 @@ void MainWindow::analysData(const QString &dataReceived)
         }
     }
 }
-
-void MainWindow::refreshData()
-{
-    // Skip if not connected or busy reading
-    if (!m_connected || m_reading) {
-        return;
-    }
-
-    // Get next command in the runtimeCommands list
-    if (!runtimeCommands.isEmpty() && commandOrder < runtimeCommands.size()) {
-        m_reading = true;
-        QString cmd = runtimeCommands[commandOrder];
-        auto data = getData(cmd);
-
-        // Process response
-        if (!data.isEmpty() && data != "error") {
-            ui->textTerminal->append("<- " + data);
-            try {
-                analysData(data);
-            } catch (...) {
-                qDebug() << "Error processing refresh data";
-            }
-        }
-
-        m_reading = false;
-        commandOrder = (commandOrder + 1) % runtimeCommands.size();  // Cycle through commands
-    }
-}
-
-void MainWindow::startAutoRefresh()
-{
-    if (!m_refreshTimer.isActive() && m_connected && !runtimeCommands.isEmpty()) {
-        m_refreshTimer.start(interval);
-        m_autoRefresh = true;
-        ui->textTerminal->append("Auto-refresh started");
-    }
-}
-
-void MainWindow::stopAutoRefresh()
-{
-    if (m_refreshTimer.isActive()) {
-        m_refreshTimer.stop();
-        m_autoRefresh = false;
-        ui->textTerminal->append("Auto-refresh stopped");
-    }
-}
-
-// UI Event Handlers
 
 void MainWindow::onConnectClicked()
 {
@@ -846,67 +721,6 @@ void MainWindow::onClearTransFaultClicked()
     ui->textTerminal->append("Transmission codes cleared. Please cycle ignition.");
 }
 
-void MainWindow::onScanClicked()
-{
-    if(!m_connected)
-        return;
-
-    ObdScan *obdScan = new ObdScan(this);
-    send("ATSH 7E0");
-    QThread::msleep(100);
-    obdScan->show();
-}
-
-void MainWindow::onIntervalSliderChanged(int value)
-{
-    interval = value * 10;  // Scale to 10-1000ms range
-    ui->labelInterval->setText(QString("%1 ms").arg(interval));
-
-    // If auto-refresh is running, restart with new interval
-    if (m_refreshTimer.isActive()) {
-        m_refreshTimer.setInterval(interval);
-    }
-}
-
-void MainWindow::onSearchPidsStateChanged(int state)
-{
-    if(!m_connected)
-        return;
-
-    if (state == Qt::Checked) {
-        m_searchPidsEnable = true;
-        getPids();
-
-        // Optionally start auto-refresh if PIDs were found
-        if (!runtimeCommands.isEmpty() && !m_refreshTimer.isActive()) {
-            commandOrder = 0;
-            //startAutoRefresh();
-        }
-    } else {
-        m_searchPidsEnable = false;
-        runtimeCommands.clear();
-        //stopAutoRefresh();
-    }
-}
-
-void MainWindow::onExitClicked()
-{
-    // Stop auto-refresh if active
-    //stopAutoRefresh();
-
-    // Disconnect if connected
-    if (m_connected && m_connectionManager) {
-        m_connectionManager->disConnectElm();
-    }
-
-    // Save settings before exit
-    if (m_settingsManager) {
-        m_settingsManager->saveSettings();
-    }
-
-    QApplication::quit();
-}
-
 void MainWindow::onReadAirbagFaultClicked()
 {
     if(!m_connected)
@@ -939,34 +753,38 @@ void MainWindow::onClearAirbagFaultClicked()
     ui->textTerminal->append("Airbag codes cleared. Please cycle ignition.");
 }
 
-// void MainWindow::onReadAbsFaultClicked()
-// {
-//     if(!m_connected)
-//         return;
-//     ui->textTerminal->append("-> Reading ABS trouble codes...");
+void MainWindow::onScanClicked()
+{
+    if(!m_connected)
+        return;
 
-//     // First select the ABS control module
-//     send("ATSH 7E4");  // Set header for ABS ECU
-//     QThread::msleep(100);
+    ObdScan *obdScan = new ObdScan(this);
+    send("ATSH 7E0");
+    QThread::msleep(100);
+    obdScan->show();
+}
 
-//     // Request ABS DTCs (using standard Mode 03 request)
-//     send("03");
-//     QThread::msleep(250);  // Longer delay for complete response
-// }
+void MainWindow::onIntervalSliderChanged(int value)
+{
+    interval = value * 10;  // Scale to 10-1000ms range
+    ui->labelInterval->setText(QString("%1 ms").arg(interval));
+}
 
-// void MainWindow::onClearAbsFaultClicked()
-// {
-//     if(!m_connected)
-//         return;
-//     ui->textTerminal->append("-> Clearing ABS trouble codes...");
+void MainWindow::onSearchPidsStateChanged(int state)
+{
+    if(!m_connected)
+        return;
 
-//     // First select the ABS control module
-//     send("ATSH 7E4");  // Set header for ABS ECU
-//     QThread::msleep(100);
+    if (state == Qt::Checked) {
+        m_searchPidsEnable = true;
+        getPids();
+    } else {
+        m_searchPidsEnable = false;
+        runtimeCommands.clear();
+    }
+}
 
-//     // Clear DTCs (using standard Mode 04 request)
-//     send("04");
-//     QThread::msleep(250);
-
-//     ui->textTerminal->append("ABS codes cleared. Please cycle ignition.");
-// }
+void MainWindow::onExitClicked()
+{
+    QApplication::quit();
+}

@@ -10,12 +10,12 @@
 #include "settingsmanager.h"
 #include "elm.h"
 
-#ifdef Q_OS_ANDROID
-#include <QCoreApplication>
-#include <QtCore/qjnienvironment.h>
-#include <QtCore/qjniobject.h>
-#include <QMessageBox>
-#endif
+// #ifdef Q_OS_ANDROID
+// #include <QCoreApplication>
+// #include <QtCore/qjnienvironment.h>
+// #include <QtCore/qjniobject.h>
+// #include <QMessageBox>
+// #endif
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -72,18 +72,10 @@ private:
     void getPids();
     QString cleanData(const QString& input);
     bool isError(std::string msg);
-#ifdef Q_OS_ANDROID
-    void requestAndroidPermissions();
-#endif
 
     // Command batch processing
     void sendNextCommand();
-    void processCommand(const QString &command);
-
-    // Auto-refresh functionality
-    void startAutoRefresh();
-    void stopAutoRefresh();
-    void refreshData();
+    void processCommand(const QString &command);   
 
     // Member variables
     Ui::MainWindow *ui;
@@ -93,7 +85,6 @@ private:
 
     QStringList initializeCommands;  // Commands sent during initialization
     QStringList runtimeCommands;     // Commands for regular polling
-    QTimer m_refreshTimer;           // Timer for auto-refresh
 
     int commandOrder{0};             // Current position in command sequence
     int interval{100};               // Refresh interval in ms
