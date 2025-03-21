@@ -1,19 +1,5 @@
 <?xml version="1.0"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.tbiliyor.obdreader" android:installLocation="auto" android:versionCode="1" android:versionName="1.0">
-    <!-- %%INSERT_PERMISSIONS -->
-    <!-- %%INSERT_FEATURES -->
-    <!-- Basic network permissions -->
-
-
-
-
-    <!-- Location permissions (required for WiFi scanning on newer Android) -->
-
-
-    <!-- Keep device awake during diagnostics -->
-
-    <!-- For background service operation -->
-
 
     <supports-screens android:anyDensity="true" android:largeScreens="true" android:normalScreens="true" android:smallScreens="true"/>
     <application android:name="org.qtproject.qt.android.bindings.QtApplication" android:hardwareAccelerated="true" android:label="-- %%INSERT_APP_NAME%% --" android:requestLegacyExternalStorage="true" android:allowBackup="true" android:fullBackupOnly="false" android:icon="@drawable/icon">

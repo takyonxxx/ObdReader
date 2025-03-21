@@ -145,7 +145,7 @@ void MainWindow::applyStyles()
         "    border-radius: 6px;"
         "    padding: 5px;"
         "}"
-    ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR).arg(FONT_SIZE - 6)); // Slightly smaller for text
+    ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR).arg(FONT_SIZE - 4)); // Slightly smaller for text
 
     // Apply styles to all standard buttons
     QList<QPushButton*> standardButtons = {
@@ -296,7 +296,7 @@ void MainWindow::connected()
     m_connected = true;
     ui->textTerminal->append("Elm 327 connected");
     send(RESET);
-    QThread::msleep(1000);
+    QThread::msleep(500);
 }
 
 void MainWindow::disconnected()
@@ -436,7 +436,7 @@ void MainWindow::saveSettings()
     QString ip = "192.168.0.10";
 #else
      // elm -n 35000 -s car
-    QString ip = "192.168.1.27";
+    QString ip = "192.168.1.4";
 #endif
 
     quint16 wifiPort = 35000;
@@ -501,9 +501,9 @@ void MainWindow::analysData(const QString &dataReceived)
                     return;  // Invalid A value
                 }
             }
-            ui->textTerminal->append("Pid: " + QString::number(PID) +
-                                     "  A: " + QString::number(A) +
-                                     "  B: " + QString::number(B));
+            // ui->textTerminal->append("Pid: " + QString::number(PID) +
+            //                          "  A: " + QString::number(A) +
+            //                          "  B: " + QString::number(B));
         }
         catch (const std::exception& e) {
             ui->textTerminal->append("Error parsing data: " + QString(e.what()));
