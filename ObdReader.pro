@@ -41,12 +41,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 # Android specific configuration
 android {
-    # Only build for one architecture at a time
-    # Choose whichever you want to build
-    # ANDROID_ABIS = armeabi-v7a
-    # ANDROID_ABIS = arm64-v8a
 
-    # Basic Android settings
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
 }
 

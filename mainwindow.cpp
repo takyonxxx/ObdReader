@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent)
     QScreen *screen = window()->screen();
     desktopRect = screen->availableGeometry();
 
-    setFixedSize(1024, 600);
+    //setFixedSize(1024, 600);
 
     // Apply styling
     applyStyles();
@@ -97,7 +97,7 @@ void MainWindow::setupConnections()
 void MainWindow::applyStyles()
 {
     // Font size constant
-    const int FONT_SIZE = 16;
+    const int FONT_SIZE = 20;
 
     // Marine theme color palette
     const QString PRIMARY_COLOR = "#005999";      // Lighter marine blue
@@ -339,6 +339,7 @@ void MainWindow::dataReceived(QString data)
     else if(!m_initialized && commandOrder < initializeCommands.size()) {
         send(initializeCommands[commandOrder]);
         commandOrder++;
+        QThread::msleep(50);
     }
 
     // Process the data if initialized
@@ -436,7 +437,7 @@ void MainWindow::saveSettings()
     QString ip = "192.168.0.10";
 #else
      // elm -n 35000 -s car
-    QString ip = "192.168.1.4";
+    QString ip = "192.168.0.10";
 #endif
 
     quint16 wifiPort = 35000;
