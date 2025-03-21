@@ -39,11 +39,7 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-# Android specific configuration
-android {
 
-    ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
-}
 
 # Simulator notes (kept as comments for reference)
 # simulator https://github.com/Ircama/ELM327-emulator/releases
@@ -51,3 +47,8 @@ android {
 # elm -n 35000 -s car
 # elm -p COM8 -s car
 # elm -n 35000 -s car
+
+contains(ANDROID_TARGET_ARCH,armeabi-v7a) {
+    ANDROID_PACKAGE_SOURCE_DIR = \
+        $$PWD/android
+}

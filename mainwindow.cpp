@@ -280,7 +280,7 @@ void MainWindow::setupIntervalSlider()
     ui->labelInterval->setAlignment(Qt::AlignCenter);
 
     // Set initial value
-    interval = 100;  // Default 100ms
+    interval = 250;
     ui->intervalSlider->setValue(interval / 10);  // Convert to slider range
     ui->labelInterval->setText(QString("%1 ms").arg(interval));
 
@@ -296,7 +296,7 @@ void MainWindow::connected()
     m_connected = true;
     ui->textTerminal->append("Elm 327 connected");
     send(RESET);
-    QThread::msleep(500);
+    QThread::msleep(250);
 }
 
 void MainWindow::disconnected()
@@ -404,7 +404,7 @@ void MainWindow::getPids()
 }
 
 bool MainWindow::isError(std::string msg) {
-    std::vector<std::string> errors(ERROR, ERROR + 18);
+    std::vector<std::string> errors(ERROR, ERROR + 16);
     for(unsigned int i=0; i < errors.size(); i++) {
         if(msg.find(errors[i]) != std::string::npos)
             return true;
@@ -661,6 +661,8 @@ void MainWindow::onClearClicked()
     }
     ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
                              "x" + QString::number(desktopRect.height()));
+
+    send(RESET);
 }
 
 void MainWindow::onReadFaultClicked()
@@ -669,9 +671,9 @@ void MainWindow::onReadFaultClicked()
         return;
     ui->textTerminal->append("-> Reading PCM trouble codes...");
 
-    // Select the PCM/Engine control module
-    send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
-    QThread::msleep(100);
+    // // Select the PCM/Engine control module
+    // send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
+    // QThread::msleep(100);
 
     // Request PCM DTCs (using standard Mode 03 request)
     send(READ_TROUBLE);
@@ -684,9 +686,9 @@ void MainWindow::onClearFaultClicked()
         return;
     ui->textTerminal->append("-> Clearing PCM trouble codes...");
 
-    // Select the PCM/Engine control module
-    send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
-    QThread::msleep(100);
+    // // Select the PCM/Engine control module
+    // send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
+    // QThread::msleep(100);
 
     // Clear DTCs (using standard Mode 04 request)
     send(CLEAR_TROUBLE);
@@ -767,8 +769,6 @@ void MainWindow::onScanClicked()
         return;
 
     ObdScan *obdScan = new ObdScan(this, runtimeCommands, interval);
-    send(ONLY_ENGINE_ECU);
-    QThread::msleep(100);
     obdScan->show();
 }
 

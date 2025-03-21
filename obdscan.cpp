@@ -237,7 +237,7 @@ QString ObdScan::send(const QString &command)
 
 bool ObdScan::isError(std::string msg)
 {
-    static const std::vector<std::string> errors(ERROR, ERROR + 18);
+    static const std::vector<std::string> errors(ERROR, ERROR + 16);
     for(const auto& error : errors) {
         if(msg.find(error) != std::string::npos)
             return true;
