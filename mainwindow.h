@@ -83,7 +83,6 @@ private:
     SettingsManager *m_settingsManager{nullptr};
     ELM *elm{nullptr};
 
-    QStringList initializeCommands;  // Commands sent during initialization
     QStringList runtimeCommands;     // Commands for regular polling
 
     int commandOrder{0};             // Current position in command sequence

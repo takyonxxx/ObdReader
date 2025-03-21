@@ -1,14 +1,16 @@
 #include "obdscan.h"
 #include "ui_obdscan.h"
-#include "global.h"
 #include "connectionmanager.h"
+#include "global.h"
 
-ObdScan::ObdScan(QWidget *parent) :
+ObdScan::ObdScan(QWidget *parent, const QStringList& commands, int& interval) :
     QMainWindow(parent),
-    ui(new Ui::ObdScan),
+    ui(new Ui::ObdScan),    
+    m_interval(interval),
     m_elm(ELM::getInstance())
 {
     ui->setupUi(this);
+    runtimeCommands = commands;
 
     // Configure window properties
     setWindowTitle("ELM327 OBD-II Diagnostic Scanner");
@@ -25,30 +27,41 @@ ObdScan::ObdScan(QWidget *parent) :
     setupInitialValues();
     setupConnections();
 
-    // Set up commands if not already provided
-    if(runtimeCommands.isEmpty()) {
-        // Add default commands for essential engine parameters
-        addCommand(ENGINE_LOAD);
-        addCommand(COOLANT_TEMP);
-        addCommand(MAN_ABSOLUTE_PRESSURE);
-        addCommand(ENGINE_RPM);
-        addCommand(VEHICLE_SPEED);
-        addCommand(INTAKE_AIR_TEMP);
-        addCommand(MAF_AIR_FLOW);
+    QStringList commandsToKeep = {
+        ENGINE_LOAD,
+        COOLANT_TEMP,
+        MAN_ABSOLUTE_PRESSURE,
+        ENGINE_RPM,
+        VEHICLE_SPEED,
+        INTAKE_AIR_TEMP,
+        MAF_AIR_FLOW
+    };
+
+    // Filter the runtime commands to keep only those in our list
+    if (!runtimeCommands.isEmpty()) {
+        QStringList filteredCommands;
+
+        // Only keep commands that are in our list
+        for (const QString& cmd : commandsToKeep) {
+            if (runtimeCommands.contains(cmd)) {
+                filteredCommands.append(cmd);
+            }
+        }
+
+        // If we didn't find any matching commands, use our default list
+        if (filteredCommands.isEmpty()) {
+            runtimeCommands = commandsToKeep;
+        } else {
+            runtimeCommands = filteredCommands;
+        }
     } else {
-        // Remove commands we don't want to process
-        removeCommand(PIDS_SUPPORTED20);
-        removeCommand(THROTTLE_POSITION);
-        removeCommand(OBD_STANDARDS);
+        // If runtimeCommands is empty, use our default list
+        runtimeCommands = commandsToKeep;
     }
 
     // Debug current command list
-    qDebug() << "\nCurrent runtime commands:";
-    for (const auto& cmd : runtimeCommands) {
-        qDebug() << " -" << cmd;
-    }
+    qDebug() << "Runtime commands:" << runtimeCommands;
 
-    // Start the command queue
     startQueue();
 }
 
@@ -191,7 +204,7 @@ void ObdScan::applyStyles()
 void ObdScan::startQueue()
 {
     connect(&m_timer, &QTimer::timeout, this, &ObdScan::onTimeout);
-    m_timer.start(interval);
+    m_timer.start(m_interval);
     m_running = true;
 }
 

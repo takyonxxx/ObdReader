@@ -1,10 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "obdscan.h"
-
 #include "global.h"
-QStringList runtimeCommands;
-int interval = 10;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -40,9 +37,6 @@ MainWindow::MainWindow(QWidget *parent)
     setupUi();
     setupConnections();
     setupIntervalSlider();
-
-    // Setup initialization commands
-    initializeCommands = {"ATZ", "ATSP0", "ATE0", "ATL0", "ATAT1", "ATH1"};
 
     // Display initial status
     ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
@@ -397,7 +391,7 @@ void MainWindow::getPids()
 
     if(!supportedPIDs.isEmpty()) {
         if(supportedPIDs.contains(",")) {
-            runtimeCommands = supportedPIDs.split(",");
+            runtimeCommands = supportedPIDs.split(",");            
         }
     }
 }
@@ -431,8 +425,14 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
+
+#ifdef Q_OS_ANDROID
     QString ip = "192.168.0.10";
-    // elm -n 35000 -s car
+#else
+     // elm -n 35000 -s car
+    QString ip = "192.168.1.27";
+#endif
+
     quint16 wifiPort = 35000;
 
     if (m_settingsManager) {
@@ -662,7 +662,7 @@ void MainWindow::onReadFaultClicked()
     ui->textTerminal->append("-> Reading PCM trouble codes...");
 
     // Select the PCM/Engine control module
-    send("ATSH 7E0");  // Set header for PCM/Engine ECU
+    send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
     QThread::msleep(100);
 
     // Request PCM DTCs (using standard Mode 03 request)
@@ -677,7 +677,7 @@ void MainWindow::onClearFaultClicked()
     ui->textTerminal->append("-> Clearing PCM trouble codes...");
 
     // Select the PCM/Engine control module
-    send("ATSH 7E0");  // Set header for PCM/Engine ECU
+    send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
     QThread::msleep(100);
 
     // Clear DTCs (using standard Mode 04 request)
@@ -695,7 +695,7 @@ void MainWindow::onReadTransFaultClicked()
     ui->textTerminal->append("-> Reading transmission trouble codes...");
 
     // First try to select the transmission control module
-    send("ATSH 7E1");  // Set header for transmission ECU
+    send(TRANS_ECU_HEADER);  // Set header for transmission ECU
     QThread::msleep(100);
 
     // Read DTCs from transmission
@@ -711,7 +711,7 @@ void MainWindow::onClearTransFaultClicked()
     ui->textTerminal->append("-> Clearing transmission trouble codes...");
 
     // First try to select the transmission control module
-    send("ATSH 7E1");  // Set header for transmission ECU
+    send(TRANS_ECU_HEADER);  // Set header for transmission ECU
     QThread::msleep(100);
 
     // Clear DTCs
@@ -728,7 +728,7 @@ void MainWindow::onReadAirbagFaultClicked()
     ui->textTerminal->append("-> Reading Airbag/SRS trouble codes...");
 
     // First select the Airbag control module
-    send("ATSH 7D3");  // Set header for Airbag ECU (try 7D0 if this doesn't work)
+    send(AIRBAG_ECU_HEADER);  // Set header for Airbag ECU (try 7D0 if this doesn't work)
     QThread::msleep(100);
 
     // Request Airbag DTCs (using standard Mode 03 request)
@@ -743,7 +743,7 @@ void MainWindow::onClearAirbagFaultClicked()
     ui->textTerminal->append("-> Clearing Airbag/SRS trouble codes...");
 
     // First select the Airbag control module
-    send("ATSH 7D3");  // Set header for Airbag ECU
+    send(AIRBAG_ECU_HEADER);  // Set header for Airbag ECU
     QThread::msleep(100);
 
     // Clear DTCs (using standard Mode 04 request)
@@ -758,8 +758,8 @@ void MainWindow::onScanClicked()
     if(!m_connected)
         return;
 
-    ObdScan *obdScan = new ObdScan(this);
-    send("ATSH 7E0");
+    ObdScan *obdScan = new ObdScan(this, runtimeCommands, interval);
+    send(ONLY_ENGINE_ECU);
     QThread::msleep(100);
     obdScan->show();
 }
@@ -788,3 +788,53 @@ void MainWindow::onExitClicked()
 {
     QApplication::quit();
 }
+
+// #ifdef Q_OS_ANDROID
+// void MainWindow::requestAndroidPermissions()
+// {
+//     // Permission that requires runtime request (location)
+//     const QStringList dangerousPermissions {
+//         "android.permission.ACCESS_FINE_LOCATION",
+//         "android.permission.ACCESS_COARSE_LOCATION"
+//     };
+
+//     bool allPermissionsGranted = true;
+
+//     // Check each permission
+//     for (const QString &permission : dangerousPermissions) {
+//         QJniObject jPermission = QJniObject::fromString(permission);
+//         QJniObject activity = QJniObject::callStaticObjectMethod(
+//             "org/qtproject/qt/android/QtNative",
+//             "activity",
+//             "()Landroid/app/Activity;");
+
+//         jint result = activity.callMethod<jint>(
+//             "checkSelfPermission",
+//             "(Ljava/lang/String;)I",
+//             jPermission.object<jstring>());
+
+//         if (result != 0) { // PERMISSION_GRANTED is 0
+//             allPermissionsGranted = false;
+
+//             // Request permission using JNI
+//             jobjectArray permissionArray;
+//             QJniEnvironment env;
+//             jclass stringClass = env->FindClass("java/lang/String");
+//             permissionArray = env->NewObjectArray(1, stringClass, nullptr);
+//             env->SetObjectArrayElement(permissionArray, 0, jPermission.object<jstring>());
+
+//             activity.callMethod<void>(
+//                 "requestPermissions",
+//                 "([Ljava/lang/String;I)V",
+//                 permissionArray,
+//                 0);
+//         }
+//     }
+
+//     if (!allPermissionsGranted) {
+//         QMessageBox::information(this, "Permissions Required",
+//                                  "Location permissions are required for WiFi scanning.\n"
+//                                  "Please grant the requested permissions.");
+//     }
+// }
+// #endif

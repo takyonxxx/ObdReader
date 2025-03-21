@@ -12,6 +12,7 @@ SOURCES += \
     connectionmanager.cpp \
     elm.cpp \
     elmtcpsocket.cpp \
+    global.cpp \
     main.cpp \
     mainwindow.cpp \
     obdscan.cpp \

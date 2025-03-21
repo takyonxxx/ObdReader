@@ -5,30 +5,13 @@
 #include <QVector>
 #include <QStringList>
 
+extern QStringList initializeCommands;
 extern QStringList runtimeCommands;
 extern int interval;
+extern const char* ERROR[];
 
-static std::string ERROR[] = {
-    "ACT ALERT",
-    "!ACT ALERT",
-    "BUFFER FULL",
-    "BUS BUSY",
-    "BUS ERROR",
-    "CAN ERROR",
-    "DATA ERROR",
-    "<DATA ERROR",
-    "ERR",
-    "FB ERROR",
-    "LP ALERT",
-    "!LP ALERT",
-    "LV RESET",
-    "NO DATA",
-    "<RX ERROR",
-    "STOPPED",
-    "UNABLE TO CONNECT",
-    "SEARCHING"};
-
-static QString DEFAULT = "ATD",
+// AT Commands - ELM327 Interface
+static const QString DEFAULT = "ATD",
     RESET = "ATZ",
     END_LINE = "\r",
     SERIAL_NUMBER = "STSN",
@@ -59,87 +42,59 @@ static QString DEFAULT = "ATD",
     ADAPTIF_TIMING_AUTO2 = "ATAT2",
     TIMEOUT_DEFAULT = "ATSTFF",
     TERMINATE_SESSION = "ATPC",
-    PIDS_SUPPORTED20 = "0100", //PIDs supported [01 - 20]
-    PIDS_SUPPORTED40 = "0120", //PIDs supported [21 - 40]
-    PIDS_SUPPORTED60 = "0140", //PIDs supported [41 - 60]
-    PIDS_SUPPORTED80 = "0160", //PIDs supported [61 - 80]
-    PIDS_SUPPORTEDA0 = "0180", //PIDs supported [81 - A0]
-    MONITOR_STATUS = "0101",
-    COOLANT_TEMP = "0105",  //A-40
-    ENGINE_RPM = "010C",  //((A*256)+B)/4
-    ENGINE_LOAD = "0104",  // A*100/255
-    VEHICLE_SPEED = "010D",  //A
-    INTAKE_AIR_TEMP = "010F",  //A-40
-    MAN_ABSOLUTE_PRESSURE = "010B", // A  Manifold Absolute Pressure
-    BAROMETRIC_PRESSURE = "0133", // A  Absolute Barometric Pressure
-    MAF_AIR_FLOW = "0110", //MAF air flow rate 0 - 655.35	grams/sec ((256*A)+B) / 100  [g/s]
-    ENGINE_OIL_TEMP = "015C",  //A-40
-    FUEL_PRESSURE = "010A",  // A*3
-    FUEL_RAIL_LOW_PRESSURE = "0122", // ((A*256)+B)*0.079
-    FUEL_RAIL_HIGH_PRESSURE = "0123", // ((A*256)+B) * 10
-    FUEL_RATE = "015E", // (A*256 + B) / 20  -->L/h
-    CONT_MODULE_VOLT = "0142",  //((A*256)+B)/1000
-    AMBIENT_AIR_TEMP = "0146",  //A-40
-    CATALYST_TEMP_B1S1 = "013C",  //(((A*256)+B)/10)-40
-    STATUS_DTC = "0101", //Status since DTC Cleared
-    THROTTLE_POSITION = "0111", //Throttle position 0 -100 % A*100/255
-    OBD_STANDARDS = "011C", //OBD standards this vehicle
-    PEDAL_POSITION = "015A", //Relative accelerator pedal position 0 -100 % A*100/255
-    DISTANCE_TRAVALED = "0131", //Distance traveled since codes cleared  256A+B
-    ACTUAL_TORQUE = "0162", //Actual engine - percent torque % A-125
-    READ_TROUBLE = "03", //Request trouble codes
-    CLEAR_TROUBLE = "04", //Clear trouble codes / Malfunction indicator lamp (MIL) / Check engine light
-    ONLY_ENGINE_ECU = "ATSH7E0",
     PROTOCOL_ISO_9141_2 = "ATSP3",
-    READ_TRANS_TROUBLE = "0902";   // Mode 09, PID 02 for VIN
 
+    // PID Support Commands - Mode 01
+    PIDS_SUPPORTED20 = "0100", // PIDs supported [01 - 20]
+    PIDS_SUPPORTED40 = "0120", // PIDs supported [21 - 40]
+    PIDS_SUPPORTED60 = "0140", // PIDs supported [41 - 60]
+    PIDS_SUPPORTED80 = "0160", // PIDs supported [61 - 80]
+    PIDS_SUPPORTEDA0 = "0180", // PIDs supported [81 - A0]
+
+    // Engine & Vehicle Data - Mode 01
+    MONITOR_STATUS = "0101",   // Status since DTCs cleared
+    STATUS_DTC = "0101",       // Same as MONITOR_STATUS
+    ENGINE_LOAD = "0104",      // A*100/255
+    COOLANT_TEMP = "0105",     // A-40
+    FUEL_PRESSURE = "010A",    // A*3
+    MAN_ABSOLUTE_PRESSURE = "010B", // A Manifold Absolute Pressure
+    ENGINE_RPM = "010C",       // ((A*256)+B)/4
+    VEHICLE_SPEED = "010D",    // A
+    INTAKE_AIR_TEMP = "010F",  // A-40
+    MAF_AIR_FLOW = "0110",     // MAF air flow rate ((256*A)+B)/100 [g/s]
+    THROTTLE_POSITION = "0111",// Throttle position A*100/255 [%]
+    OBD_STANDARDS = "011C",    // OBD standards this vehicle
+    FUEL_RAIL_LOW_PRESSURE = "0122", // ((A*256)+B)*0.079
+    FUEL_RAIL_HIGH_PRESSURE = "0123", // ((A*256)+B)*10
+    DISTANCE_TRAVALED = "0131", // Distance traveled since codes cleared 256A+B
+    BAROMETRIC_PRESSURE = "0133", // A Absolute Barometric Pressure
+    CATALYST_TEMP_B1S1 = "013C", // (((A*256)+B)/10)-40
+    CONT_MODULE_VOLT = "0142",  // ((A*256)+B)/1000
+    AMBIENT_AIR_TEMP = "0146",  // A-40
+    PEDAL_POSITION = "015A",    // Relative accelerator pedal position A*100/255 [%]
+    ENGINE_OIL_TEMP = "015C",   // A-40
+    FUEL_RATE = "015E",         // (A*256+B)/20 [L/h]
+    ACTUAL_TORQUE = "0162",     // Actual engine - percent torque A-125 [%]
+
+    // Diagnostic Trouble Codes - Mode 03 & 04
+    READ_TROUBLE = "03",        // Request trouble codes
+    CLEAR_TROUBLE = "04",       // Clear trouble codes / MIL / Check engine light
+
+    // Vehicle Information - Mode 09
+    READ_VIN = "0902",          // Mode 09, PID 02 for VIN
+
+    // ECU Selection Commands
+    ONLY_ENGINE_ECU = "ATSH7E0",
+
+    // Keep original to maintain compatibility
+    READ_TRANS_TROUBLE = "0902";  // This is actually for VIN, not transmission
+
+// Additional useful commands (add these to your code)
+static const QString TRANS_ECU_HEADER = "ATSH7E1";  // Set header for transmission ECU
+static const QString ABS_ECU_HEADER = "ATSH7E4";    // Set header for ABS ECU
+static const QString AIRBAG_ECU_HEADER = "ATSH7D3"; // Set header for airbag ECU
+static const QString PCM_ECU_HEADER = "ATSH7E0";    // Same as ONLY_ENGINE_ECU
 //0104, 0105, 010B, 010C, 010D, 010F, 0110, 0111, 011C (ENGINE_LOAD, COOLANT_TEMP, MAN_ABSOLUTE_PRESSURE, ENGINE_RPM, VEHICLE_SPEED, INTAKE_AIR_TEMP, MAF_AIR_FLOW, THROTTLE_POSITION, OBD_STANDARDS)
-
-template <typename T>
-typename std::enable_if<std::is_unsigned<T>::value, int>::type
-    inline constexpr signum(T x) {
-    return T(0) < x;
-}
-
-template <typename T>
-typename std::enable_if<std::is_signed<T>::value, int>::type
-    inline constexpr signum(T x) {
-    return (T(0) < x) - (x < T(0));
-}
-
-static QStringList initializeCommands{LINEFEED_OFF, ECHO_OFF, HEADERS_OFF, ADAPTIF_TIMING_AUTO2, PROTOCOL_ISO_9141_2, MONITOR_STATUS};
-
-static long long currentTimeMillis()
-{
-    namespace sc = std::chrono;
-    auto time = sc::system_clock::now(); // get the current time
-    auto since_epoch = time.time_since_epoch(); // get the duration since epoch
-    auto millis = sc::duration_cast<sc::milliseconds>(since_epoch);
-    return millis.count();
-}
-
-static QString osName()
-{
-#if defined(Q_OS_ANDROID)
-    return QLatin1String("android");
-#elif defined(Q_OS_BLACKBERRY)
-    return QLatin1String("blackberry");
-#elif defined(Q_OS_IOS)
-    return QLatin1String("ios");
-#elif defined(Q_OS_MAC)
-    return QLatin1String("osx");
-#elif defined(Q_OS_WINCE)
-    return QLatin1String("wince");
-#elif defined(Q_OS_WIN)
-    return QLatin1String("windows");
-#elif defined(Q_OS_LINUX)
-    return QLatin1String("linux");
-#elif defined(Q_OS_UNIX)
-    return QLatin1String("unix");
-#else
-    return QLatin1String("unknown");
-#endif
-}
 
 /*
 ATSP

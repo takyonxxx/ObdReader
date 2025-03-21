@@ -128,11 +128,6 @@ std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
                     }
                 }
 
-                qDebug() << "Standard format decoded:";
-                for (const auto& item : result) {
-                    qDebug() << "  " << item;
-                }
-
                 return result;
             }
         }
@@ -156,12 +151,6 @@ std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
                     result.push_back(cleanedResponse.mid(i, 2));
                 }
             }
-
-            qDebug() << "Continuous format decoded:";
-            for (const auto& item : result) {
-                qDebug() << "  " << item;
-            }
-
             return result;
         }
     }

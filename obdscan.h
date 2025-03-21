@@ -18,8 +18,17 @@ class ObdScan : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit ObdScan(QWidget *parent = nullptr);
+    explicit ObdScan(QWidget *parent,const QStringList& commands, int& interval);
     ~ObdScan() override;
+
+private slots:
+    void onTimeout();
+    void dataReceived(QString data);
+    void onClearClicked();
+    void onExitClicked();
+
+protected:
+    void closeEvent(QCloseEvent* event) override;
 
 private:
     // UI and styling methods
@@ -46,17 +55,9 @@ private:
     void startQueue();
     void stopQueue();
 
-private slots:
-    void onTimeout();
-    void dataReceived(QString data);
-    void onClearClicked();
-    void onExitClicked();
-
-protected:
-    void closeEvent(QCloseEvent* event) override;
-
-private:
     Ui::ObdScan* ui;
+
+    int m_interval = 100;
 
     // Communication and threading
     QMutex m_mutex;
