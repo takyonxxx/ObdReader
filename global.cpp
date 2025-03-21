@@ -6,6 +6,6 @@ const char* ERROR[] = { "UNABLE", "BUS INIT", "BUS BUSY", "BUS ERROR",
                        "ERROR", "STOPPED", "TIMEOUT", "?", "SEARCH", "NODATA",
                        "NO DATA", "UNABLETOCONNECT", "<", ">" };
 
-QStringList initializeCommands = {LINEFEED_OFF, ECHO_OFF, HEADERS_OFF, ADAPTIF_TIMING_AUTO2, PROTOCOL_ISO_9141_2, MONITOR_STATUS};
+QStringList initializeCommands = {ECHO_OFF, LINEFEED_OFF, HEADERS_ON, TIMEOUT_100, ADAPTIF_TIMING_AUTO2, PROTOCOL_AUTO, MONITOR_STATUS};
 QStringList runtimeCommands = {};
 int interval = 100;  // Default value

@@ -14,6 +14,8 @@ MainWindow::MainWindow(QWidget *parent)
     QScreen *screen = window()->screen();
     desktopRect = screen->availableGeometry();
 
+    setFixedSize(1024, 600);
+
     // Apply styling
     applyStyles();
 
@@ -94,6 +96,9 @@ void MainWindow::setupConnections()
 
 void MainWindow::applyStyles()
 {
+    // Font size constant
+    const int FONT_SIZE = 16;
+
     // Marine theme color palette
     const QString PRIMARY_COLOR = "#005999";      // Lighter marine blue
     const QString SECONDARY_COLOR = "#002D4D";    // Darker marine blue
@@ -106,41 +111,41 @@ void MainWindow::applyStyles()
     this->setStyleSheet(
         "QMainWindow {"
         "    background-color: " + BACKGROUND_COLOR + ";"
-                             "}"
-        );
+        "}"
+    );
 
     // Base button style
     const QString buttonBaseStyle = QString(
-                                        "QPushButton {"
-                                        "    font-size: 22pt;"
-                                        "    font-weight: bold;"
-                                        "    color: %1;"                          // TEXT_COLOR
-                                        "    background-color: %2;"               // SECONDARY_COLOR
-                                        "    border-radius: 8px;"
-                                        "    padding: 6px 10px;"
-                                        "    margin: 4px;"
-                                        "}"
-                                        "QPushButton:hover {"
-                                        "    background-color: %3;"               // PRIMARY_COLOR
-                                        "    color: #E6F3FF;"
-                                        "}"
-                                        "QPushButton:pressed {"
-                                        "    background-color: %4;"               // Darker version
-                                        "    padding: 14px 18px;"
-                                        "}"
-                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#001F33");
+        "QPushButton {"
+        "    font-size: %5pt;"
+        "    font-weight: bold;"
+        "    color: %1;"                          // TEXT_COLOR
+        "    background-color: %2;"               // SECONDARY_COLOR
+        "    border-radius: 6px;"
+        "    padding: 4px 6px;"
+        "    margin: 2px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: %3;"               // PRIMARY_COLOR
+        "    color: #E6F3FF;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: %4;"               // Darker version
+        "    padding: 4px 6px;"
+        "}"
+    ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#001F33").arg(FONT_SIZE);
 
     // Terminal style with marine theme
     ui->textTerminal->setStyleSheet(QString(
-                                        "QTextEdit {"
-                                        "    font: 20pt 'Consolas';"
-                                        "    color: %1;"                     // Light text
-                                        "    background-color: %2;"          // Darker background
-                                        "    border: 1px solid %3;"
-                                        "    border-radius: 8px;"
-                                        "    padding: 10px;"
-                                        "}"
-                                        ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR));
+        "QTextEdit {"
+        "    font: %4pt 'Consolas';"
+        "    color: %1;"                     // Light text
+        "    background-color: %2;"          // Darker background
+        "    border: 1px solid %3;"
+        "    border-radius: 6px;"
+        "    padding: 5px;"
+        "}"
+    ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR).arg(FONT_SIZE - 6)); // Slightly smaller for text
 
     // Apply styles to all standard buttons
     QList<QPushButton*> standardButtons = {
@@ -156,109 +161,109 @@ void MainWindow::applyStyles()
 
     // Checkbox style with marine theme
     ui->checkSearchPids->setStyleSheet(QString(
-                                           "QCheckBox {"
-                                           "    font-size: 22pt;"
-                                           "    font-weight: bold;"
-                                           "    color: %1;"
-                                           "    padding: 3px;"
-                                           "    spacing: 6px;"
-                                           "}"
-                                           "QCheckBox::indicator {"
-                                           "    width: 28px;"
-                                           "    height: 28px;"
-                                           "    border: 2px solid %2;"
-                                           "    border-radius: 6px;"
-                                           "}"
-                                           "QCheckBox::indicator:unchecked {"
-                                           "    background-color: transparent;"
-                                           "}"
-                                           "QCheckBox::indicator:checked {"
-                                           "    background-color: %3;"
-                                           "}"
-                                           "QCheckBox::indicator:hover {"
-                                           "    border-color: %4;"
-                                           "}"
-                                           ).arg(TEXT_COLOR, PRIMARY_COLOR, ACCENT_COLOR, PRIMARY_COLOR));
+        "QCheckBox {"
+        "    font-size: %5pt;"
+        "    font-weight: bold;"
+        "    color: %1;"
+        "    padding: 3px;"
+        "    spacing: 6px;"
+        "}"
+        "QCheckBox::indicator {"
+        "    width: 28px;"
+        "    height: 22px;"
+        "    border: 2px solid %2;"
+        "    border-radius: 6px;"
+        "}"
+        "QCheckBox::indicator:unchecked {"
+        "    background-color: transparent;"
+        "}"
+        "QCheckBox::indicator:checked {"
+        "    background-color: %3;"
+        "}"
+        "QCheckBox::indicator:hover {"
+        "    border-color: %4;"
+        "}"
+    ).arg(TEXT_COLOR, PRIMARY_COLOR, ACCENT_COLOR, PRIMARY_COLOR).arg(FONT_SIZE - 2));
 
     // Input fields style
     const QString inputStyle = QString(
-                                   "QWidget {"
-                                   "    font-size: 20pt;"
-                                   "    font-weight: bold;"
-                                   "    color: %1;"
-                                   "    background-color: %2;"
-                                   "    border: 1px solid %3;"
-                                   "    border-radius: 6px;"
-                                   "    padding: 8px;"
-                                   "}"
-                                   "QWidget:focus {"
-                                   "    border: 2px solid %4;"
-                                   "}"
-                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR);
+        "QWidget {"
+        "    font-size: %5pt;"
+        "    font-weight: bold;"
+        "    color: %1;"
+        "    background-color: %2;"
+        "    border: 1px solid %3;"
+        "    border-radius: 6px;"
+        "    padding: 8px;"
+        "}"
+        "QWidget:focus {"
+        "    border: 2px solid %4;"
+        "}"
+    ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE - 2);
 
     ui->sendEdit->setStyleSheet(inputStyle);
     ui->protocolCombo->setStyleSheet(inputStyle + QString(
-                                         "QComboBox::drop-down {"
-                                         "    border: none;"
-                                         "    width: 30px;"
-                                         "}"
-                                         "QComboBox::down-arrow {"
-                                         "    width: 16px;"
-                                         "    height: 16px;"
-                                         "}"
-                                         ));
+        "QComboBox::drop-down {"
+        "    border: none;"
+        "    width: 30px;"
+        "}"
+        "QComboBox::down-arrow {"
+        "    width: 16px;"
+        "    height: 16px;"
+        "}"
+    ));
 
     // Interval slider style
     ui->labelInterval->setStyleSheet(QString(
-                                         "QLabel {"
-                                         "    font-size: 28px;"
-                                         "    font-weight: bold;"
-                                         "    color: %1;"
-                                         "    padding: 3px;"
-                                         "    background-color: %2;"
-                                         "    border-radius: 3px;"
-                                         "    margin: 3px;"
-                                         "}"
-                                         ).arg(TEXT_COLOR, SECONDARY_COLOR));
+        "QLabel {"
+        "    font-size: %2px;"
+        "    font-weight: bold;"
+        "    color: %1;"
+        "    padding: 3px;"
+        "    background-color: %3;"
+        "    border-radius: 3px;"
+        "    margin: 3px;"
+        "}"
+    ).arg(TEXT_COLOR, QString::number(FONT_SIZE), SECONDARY_COLOR));
 
     ui->intervalSlider->setStyleSheet(QString(
-                                          "QSlider::groove:horizontal {"
-                                          "    border: none;"
-                                          "    height: 20px;"
-                                          "    background: %1;"
-                                          "    border-radius: 5px;"
-                                          "    margin: 0px;"
-                                          "}"
-                                          "QSlider::handle:horizontal {"
-                                          "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-                                          "        stop:0 %2, stop:1 %3);"
-                                          "    border: none;"
-                                          "    width: 30px;"
-                                          "    margin: -5px 0;"
-                                          "    border-radius: 10px;"
-                                          "}"
-                                          "QSlider::sub-page:horizontal {"
-                                          "    background: %4;"
-                                          "    border-radius: 5px;"
-                                          "}"
-                                          "QSlider::add-page:horizontal {"
-                                          "    background: %5;"
-                                          "    border-radius: 5px;"
-                                          "}"
-                                          "QSlider::tick-mark {"
-                                          "    background: %6;"
-                                          "    width: 2px;"
-                                          "    height: 5px;"
-                                          "    margin-top: 5px;"
-                                          "}"
-                                          ).arg(
-                                              "#001F33",              // Groove background
-                                              ACCENT_COLOR,           // Handle gradient start
-                                              PRIMARY_COLOR,          // Handle gradient end
-                                              PRIMARY_COLOR,          // Sub-page (filled)
-                                              "#001F33",              // Add-page (empty)
-                                              BORDER_COLOR            // Tick marks
-                                              ));
+        "QSlider::groove:horizontal {"
+        "    border: none;"
+        "    height: 16px;"
+        "    background: %1;"
+        "    border-radius: 5px;"
+        "    margin: 0px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+        "        stop:0 %2, stop:1 %3);"
+        "    border: none;"
+        "    width: 30px;"
+        "    margin: -5px 0;"
+        "    border-radius: 10px;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "    background: %4;"
+        "    border-radius: 5px;"
+        "}"
+        "QSlider::add-page:horizontal {"
+        "    background: %5;"
+        "    border-radius: 5px;"
+        "}"
+        "QSlider::tick-mark {"
+        "    background: %6;"
+        "    width: 2px;"
+        "    height: 5px;"
+        "    margin-top: 5px;"
+        "}"
+    ).arg(
+        "#001F33",              // Groove background
+        ACCENT_COLOR,           // Handle gradient start
+        PRIMARY_COLOR,          // Handle gradient end
+        PRIMARY_COLOR,          // Sub-page (filled)
+        "#001F33",              // Add-page (empty)
+        BORDER_COLOR            // Tick marks
+    ));
 }
 
 void MainWindow::setupIntervalSlider()
@@ -291,6 +296,7 @@ void MainWindow::connected()
     m_connected = true;
     ui->textTerminal->append("Elm 327 connected");
     send(RESET);
+    QThread::msleep(1000);
 }
 
 void MainWindow::disconnected()
@@ -629,7 +635,8 @@ void MainWindow::onSetProtocolClicked()
         index = "B";
     else if(ui->protocolCombo->currentIndex() == 12)
         index = "C";
-    QString command = "ATTP" + index;
+
+    QString command = "ATSP" + index;
     send(command);
 }
 
