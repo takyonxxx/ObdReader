@@ -46,19 +46,22 @@ void ElmBluetoothManager::startDeviceDiscovery()
 
     m_discoveredDevices.clear();
 
-    // Check if Bluetooth is available and enabled
-    if (!m_localDevice->isValid()) {
-        emit stateChanged("Bluetooth is not available on this device");
-        return;
-    }
+    // Debug information
+    qDebug() << "Starting Bluetooth device discovery";
 
-    if (m_localDevice->hostMode() == QBluetoothLocalDevice::HostPoweredOff) {
-        emit stateChanged("Bluetooth is powered off. Please turn it on.");
-        return;
-    }
-
+    // Skip local device checks which can be problematic on Android
     emit stateChanged("Scanning for Bluetooth devices...");
-    m_discoveryAgent->start(QBluetoothDeviceDiscoveryAgent::ClassicMethod);
+
+    // Use the discovery agent directly - it will handle permissions internally
+    try {
+        m_discoveryAgent->start();
+    } catch (const std::exception& e) {
+        emit stateChanged("Error starting discovery: " + QString(e.what()));
+        qDebug() << "Discovery error:" << e.what();
+    } catch (...) {
+        emit stateChanged("Unknown error during Bluetooth discovery");
+        qDebug() << "Unknown discovery error";
+    }
 }
 
 void ElmBluetoothManager::stopDeviceDiscovery()
@@ -80,7 +83,7 @@ void ElmBluetoothManager::deviceDiscovered(const QBluetoothDeviceInfo &device)
 
     // Check if this device is likely an OBD adapter
     bool isObdDevice = false;
-    QStringList obdKeywords = {"OBD", "ELM", "OBDII", "OBD2", "OBD-II", "VGATE", "KONNWEI", "SCAN", "BLUETOOTH"};
+    QStringList obdKeywords = {"OBD", "ELM", "OBDII", "OBD2", "OBD-II"};
 
     // Case-insensitive check for OBD-related terms in the device name
     for (const QString &keyword : obdKeywords) {
@@ -174,7 +177,7 @@ bool ElmBluetoothManager::connectBluetooth(const QString &deviceAddress)
 void ElmBluetoothManager::disconnectBluetooth()
 {
     if (m_socket) {
-        if (m_socket && m_socket->isOpen()) {
+        if (m_socket->isOpen()) {
             m_socket->disconnectFromService();
         }
 
@@ -182,6 +185,7 @@ void ElmBluetoothManager::disconnectBluetooth()
         m_socket = nullptr;
     }
 
+    // Always set connected state to false and emit signal
     m_connected = false;
 }
 
@@ -244,14 +248,12 @@ bool ElmBluetoothManager::isConnected() const
 void ElmBluetoothManager::socketConnected()
 {
     m_connected = true;
-    emit stateChanged("Bluetooth connected");
     emit btConnected();
 }
 
 void ElmBluetoothManager::socketDisconnected()
 {
     m_connected = false;
-    emit stateChanged("Bluetooth disconnected");
     emit btDisconnected();
 }
 
@@ -271,19 +273,7 @@ void ElmBluetoothManager::socketError(QBluetoothSocket::SocketError error)
 
 void ElmBluetoothManager::socketStateChanged(QBluetoothSocket::SocketState state)
 {
-    QString stateString = "Bluetooth socket state: ";
 
-    if (m_socket) {
-        if (m_socket->isOpen()) {
-            stateString += "Connected";
-        } else {
-            stateString += "Disconnected";
-        }
-    } else {
-        stateString += "Unknown";
-    }
-
-    emit stateChanged(stateString);
 }
 
 void ElmBluetoothManager::readyRead()

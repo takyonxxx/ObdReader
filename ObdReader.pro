@@ -41,7 +41,29 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
+# Android-specific configuration
+android {
+    # Define app icons for different densities
+    ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android
+    DISTFILES += \
+        android/AndroidManifest.xml \
+        android/build.gradle \
+        android/res/values/libs.xml
 
+    # Make sure these icon files exist in your android/res directory
+    DISTFILES += \
+        android/res/drawable-ldpi/ic_launcher.png \
+        android/res/drawable-mdpi/ic_launcher.png \
+        android/res/drawable-hdpi/ic_launcher.png \
+        android/res/drawable-xhdpi/ic_launcher.png \
+        android/res/drawable-xxhdpi/ic_launcher.png \
+        android/res/drawable-xxxhdpi/ic_launcher.png \
+        android/res/drawable/splash.xml
+
+    # Add Bluetooth permissions
+    DISTFILES += \
+        android/src/org/qtproject/qt/android/bluetooth/QtBluetoothBroadcastReceiver.java
+}
 
 # Simulator notes (kept as comments for reference)
 # simulator https://github.com/Ircama/ELM327-emulator/releases
@@ -49,8 +71,3 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 # elm -n 35000 -s car
 # elm -p COM8 -s car
 # elm -n 35000 -s car
-
-contains(ANDROID_TARGET_ARCH,armeabi-v7a) {
-    ANDROID_PACKAGE_SOURCE_DIR = \
-        $$PWD/android
-}

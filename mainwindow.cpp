@@ -1,26 +1,24 @@
 #include "mainwindow.h"
-#include "ui_mainwindow.h"
 #include "obdscan.h"
 #include "global.h"
+#include <QApplication>
+#include <QCoreApplication>
+#include <QScreen>
+#include <QThread>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);
-
     // Initialize screen and window properties
     setWindowTitle("OBD-II Diagnostic Interface");
     QScreen *screen = window()->screen();
     desktopRect = screen->availableGeometry();
 
-    //setFixedSize(1024, 600);
+    // Setup UI programmatically
+    setupUi();
 
     // Apply styling
     applyStyles();
-
-    // Set protocol default
-    ui->protocolCombo->setCurrentIndex(3);
 
     // Initialize OBD components
     elm = ELM::getInstance();
@@ -29,22 +27,23 @@ MainWindow::MainWindow(QWidget *parent)
     m_settingsManager = SettingsManager::getInstance();
     if(m_settingsManager) {
         saveSettings();
-        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " +
-                                 QString::number(m_settingsManager->getWifiPort()));
+        textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " +
+                           QString::number(m_settingsManager->getWifiPort()));
     }
 
     m_connectionManager = ConnectionManager::getInstance();
 
-    // Initialize UI components
-    setupUi();
+    // Setup connections and interval slider
     setupConnections();
     setupIntervalSlider();
 
+    // Set protocol default
+    protocolCombo->setCurrentIndex(3);
+
     // Display initial status
-    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
-                             "x" + QString::number(desktopRect.height()));
-    ui->textTerminal->append("Press Connect Button");
-    ui->pushConnect->setFocus();
+    textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
+                       "x" + QString::number(desktopRect.height()));
+    textTerminal->append("Press Connect Button");
 }
 
 MainWindow::~MainWindow()
@@ -56,35 +55,346 @@ MainWindow::~MainWindow()
     if(m_settingsManager) {
         m_settingsManager->saveSettings();
     }
-
-    delete ui;
 }
 
 void MainWindow::setupUi()
 {
-    // Set default command
-    ui->sendEdit->setText("0101");
+    // Create central widget and main layouts
+    centralWidget = new QWidget(this);
+    setCentralWidget(centralWidget);
+
+    gridLayout = new QGridLayout(centralWidget);
+    gridLayout->setContentsMargins(6, 6, 6, 6);
+    gridLayout->setSpacing(6);
+
+    verticalLayout = new QVBoxLayout();
+    verticalLayout->setSpacing(6);
+
+    gridLayoutElm = new QGridLayout();
+    gridLayoutElm->setSpacing(6);
+
+    // Create and set up all UI elements
+
+    // Bluetooth UI components
+    connectionTypeLabel = new QLabel("Connection:", centralWidget);
+    connectionTypeLabel->setMinimumSize(80, 48);
+
+    m_connectionTypeCombo = new QComboBox(centralWidget);
+    m_connectionTypeCombo->setMinimumHeight(48);
+
+    btDeviceLabel = new QLabel("BT Device:", centralWidget);
+    btDeviceLabel->setMinimumSize(80, 48);
+
+    m_bluetoothDevicesCombo = new QComboBox(centralWidget);
+    m_bluetoothDevicesCombo->setMinimumHeight(48);
+
+    // Connection controls
+    pushConnect = new QPushButton("Connect", centralWidget);
+    pushConnect->setMinimumHeight(48);
+
+    checkSearchPids = new QCheckBox("Get Pids", centralWidget);
+    checkSearchPids->setMinimumHeight(48);
+    checkSearchPids->setIconSize(QSize(32, 32));
+    checkSearchPids->setChecked(false);
+
+    // Spacer after connection controls
+    verticalSpacer = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+
+    // Fault reading buttons
+    pushReadFault = new QPushButton("Read Fault", centralWidget);
+    pushReadFault->setMinimumHeight(48);
+
+    pushClearFault = new QPushButton("Clear Fault", centralWidget);
+    pushClearFault->setMinimumHeight(48);
+
+    btnReadTransFault = new QPushButton("Read Transmission", centralWidget);
+    btnReadTransFault->setMinimumHeight(48);
+
+    btnClearTransFault = new QPushButton("Clear Transmission", centralWidget);
+    btnClearTransFault->setMinimumHeight(48);
+
+    btnReadAirbagFault = new QPushButton("Read Airbag", centralWidget);
+    btnReadAirbagFault->setMinimumHeight(48);
+
+    btnClearAirbagFault = new QPushButton("Clear Airbag", centralWidget);
+    btnClearAirbagFault->setMinimumHeight(48);
+
+    // Spacer after fault buttons
+    verticalSpacer2 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+
+    // Scan and Read buttons
+    pushScan = new QPushButton("Scan", centralWidget);
+    pushScan->setMinimumHeight(48);
+
+    pushRead = new QPushButton("Read", centralWidget);
+    pushRead->setMinimumHeight(48);
+
+    // Spacer after scan/read buttons
+    verticalSpacer3 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+
+    // Command input and send
+    sendEdit = new QLineEdit(centralWidget);
+    sendEdit->setMinimumHeight(48);
+    sendEdit->setText("0101"); // Default command
+
+    pushSend = new QPushButton("    Send    ", centralWidget);
+    pushSend->setMinimumHeight(48);
+
+    // Spacer after command input
+    verticalSpacer4 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+
+    // Protocol selection
+    protocolCombo = new QComboBox(centralWidget);
+    protocolCombo->setMinimumHeight(48);
+    protocolCombo->addItem("Automatic protocol detection");
+    protocolCombo->addItem("SAE J1850 PWM (41.6 kbaud)");
+    protocolCombo->addItem("SAE J1850 VPW (10.4 kbaud)");
+    protocolCombo->addItem("ISO 9141-2 (5 baud init, 10.4 kbaud)");
+    protocolCombo->addItem("ISO 14230-4 KWP (5 baud init, 10.4 kbaud)");
+    protocolCombo->addItem("ISO 14230-4 KWP (fast init, 10.4 kbaud)");
+    protocolCombo->addItem("ISO 15765-4 CAN (11 bit ID, 500 kbaud)");
+    protocolCombo->addItem("ISO 15765-4 CAN (29 bit ID, 500 kbaud)");
+    protocolCombo->addItem("ISO 15765-4 CAN (11 bit ID, 250 kbaud)");
+    protocolCombo->addItem("ISO 15765-4 CAN (29 bit ID, 250 kbaud)");
+    protocolCombo->addItem("SAE J1939 CAN (29 bit ID, 250* kbaud)");
+    protocolCombo->addItem("User1 CAN (11* bit ID, 125* kbaud)");
+    protocolCombo->addItem("User2 CAN (11* bit ID, 50* kbaud)");
+
+    pushSetProtocol = new QPushButton("Set", centralWidget);
+    pushSetProtocol->setMinimumHeight(48);
+
+    pushGetProtocol = new QPushButton("Get", centralWidget);
+    pushGetProtocol->setMinimumHeight(48);
+
+    // Interval controls
+    intervalSlider = new QSlider(Qt::Horizontal, centralWidget);
+    intervalSlider->setMinimumHeight(40);
+
+    labelInterval = new QLabel("0 ms", centralWidget);
+    labelInterval->setMinimumHeight(40);
+    labelInterval->setAlignment(Qt::AlignCenter);
+
+    // Terminal display
+    textTerminal = new QTextBrowser(centralWidget);
+    textTerminal->setMinimumHeight(150);
+    QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    sizePolicy.setHorizontalStretch(0);
+    sizePolicy.setVerticalStretch(1);
+    textTerminal->setSizePolicy(sizePolicy);
+
+    // Bottom buttons
+    pushClear = new QPushButton("Reset ", centralWidget);
+    pushClear->setMinimumHeight(48);
+
+    pushExit = new QPushButton("Exit", centralWidget);
+    pushExit->setMinimumHeight(48);
+
+    // Add all widgets to the layout
+
+    // Row 0: Connection type
+    gridLayoutElm->addWidget(connectionTypeLabel, 0, 0);
+    gridLayoutElm->addWidget(m_connectionTypeCombo, 0, 1, 1, 3);
+
+    // Row 1: BT Device
+    gridLayoutElm->addWidget(btDeviceLabel, 1, 0);
+    gridLayoutElm->addWidget(m_bluetoothDevicesCombo, 1, 1, 1, 3);
+
+    // Row 2: Connect button and Get Pids checkbox
+    gridLayoutElm->addWidget(pushConnect, 2, 0, 1, 2);
+    gridLayoutElm->addWidget(checkSearchPids, 2, 2, 1, 2);
+
+    // Row 3: Spacer
+    gridLayoutElm->addItem(verticalSpacer, 3, 0, 1, 4);
+
+    // Row 10: Fault buttons
+    gridLayoutElm->addWidget(pushReadFault, 10, 0, 1, 2);
+    gridLayoutElm->addWidget(pushClearFault, 10, 2, 1, 2);
+
+    // Row 11: Transmission buttons
+    gridLayoutElm->addWidget(btnReadTransFault, 11, 0, 1, 2);
+    gridLayoutElm->addWidget(btnClearTransFault, 11, 2, 1, 2);
+
+    // Row 12: Airbag buttons
+    gridLayoutElm->addWidget(btnReadAirbagFault, 12, 0, 1, 2);
+    gridLayoutElm->addWidget(btnClearAirbagFault, 12, 2, 1, 2);
+
+    // Row 13: Spacer
+    gridLayoutElm->addItem(verticalSpacer2, 13, 0, 1, 4);
+
+    // Row 14: Scan and Read buttons
+    gridLayoutElm->addWidget(pushScan, 14, 0, 1, 2);
+    gridLayoutElm->addWidget(pushRead, 14, 2, 1, 2);
+
+    // Row 16: Spacer
+    gridLayoutElm->addItem(verticalSpacer3, 16, 0, 1, 4);
+
+    // Row 17: Command input and Send button
+    gridLayoutElm->addWidget(sendEdit, 17, 0, 1, 2);
+    gridLayoutElm->addWidget(pushSend, 17, 2, 1, 2);
+
+    // Row 18: Spacer
+    gridLayoutElm->addItem(verticalSpacer4, 18, 0, 1, 4);
+
+    // Row 19: Protocol selection
+    gridLayoutElm->addWidget(protocolCombo, 19, 0, 1, 2);
+    gridLayoutElm->addWidget(pushSetProtocol, 19, 2);
+    gridLayoutElm->addWidget(pushGetProtocol, 19, 3);
+
+    // Row 20: Interval controls
+    gridLayoutElm->addWidget(intervalSlider, 20, 0, 1, 2);
+    gridLayoutElm->addWidget(labelInterval, 20, 2, 1, 2);
+
+    // Row 24: Terminal
+    gridLayoutElm->addWidget(textTerminal, 24, 0, 1, 4);
+
+    // Row 25: Bottom buttons
+    gridLayoutElm->addWidget(pushClear, 25, 0);
+    gridLayoutElm->addWidget(pushExit, 25, 1, 1, 3);
+
+    // Add gridLayoutElm to verticalLayout
+    verticalLayout->addLayout(gridLayoutElm);
+
+    // Add verticalLayout to the main gridLayout
+    gridLayout->addLayout(verticalLayout, 0, 0);
+
+    // Set up Bluetooth UI specific functionality
     setupBluetoothUI();
+}
+
+void MainWindow::setupBluetoothUI()
+{
+    // Initialize combo boxes
+    m_connectionTypeCombo->addItem("WiFi");
+    m_connectionTypeCombo->addItem("Bluetooth");
+    m_connectionTypeCombo->setCurrentIndex(0); // Default to WiFi
+
+    m_bluetoothDevicesCombo->clear();
+    m_bluetoothDevicesCombo->addItem("Select device...");
+
+    // Style the components
+    const int FONT_SIZE = 20;
+    const QString TEXT_COLOR = "#E6F3FF";
+    const QString SECONDARY_COLOR = "#002D4D";
+    const QString BORDER_COLOR = "#004C80";
+    const QString ACCENT_COLOR = "#0073BF";
+
+    const QString inputStyle = QString(
+                                   "QWidget {"
+                                   "    font-size: %5pt;"
+                                   "    font-weight: bold;"
+                                   "    color: %1;"
+                                   "    background-color: %2;"
+                                   "    border: 1px solid %3;"
+                                   "    border-radius: 6px;"
+                                   "    padding: 8px;"
+                                   "}"
+                                   "QWidget:focus {"
+                                   "    border: 2px solid %4;"
+                                   "}"
+                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE - 2);
+
+    m_connectionTypeCombo->setStyleSheet(inputStyle + QString(
+                                             "QComboBox::drop-down {"
+                                             "    border: none;"
+                                             "    width: 30px;"
+                                             "}"
+                                             "QComboBox::down-arrow {"
+                                             "    width: 16px;"
+                                             "    height: 16px;"
+                                             "}"
+                                             ));
+
+    m_bluetoothDevicesCombo->setStyleSheet(inputStyle + QString(
+                                               "QComboBox::drop-down {"
+                                               "    border: none;"
+                                               "    width: 30px;"
+                                               "}"
+                                               "QComboBox::down-arrow {"
+                                               "    width: 16px;"
+                                               "    height: 16px;"
+                                               "}"
+                                               ));
+
+    connectionTypeLabel->setStyleSheet(QString(
+                                           "QLabel {"
+                                           "    font-size: %2pt;"
+                                           "    font-weight: bold;"
+                                           "    color: %1;"
+                                           "}"
+                                           ).arg(TEXT_COLOR).arg(FONT_SIZE));
+
+    btDeviceLabel->setStyleSheet(QString(
+                                     "QLabel {"
+                                     "    font-size: %2pt;"
+                                     "    font-weight: bold;"
+                                     "    color: %1;"
+                                     "}"
+                                     ).arg(TEXT_COLOR).arg(FONT_SIZE));
+
+    // Connect signals with strong connection type
+    connect(m_connectionTypeCombo, &QComboBox::currentIndexChanged,
+            [this](int index) {
+                if (index == 0) {
+                    if (m_connectionManager) {
+                        m_connectionManager->setConnectionType(Wifi);
+                        btDeviceLabel->setVisible(false);
+                        m_bluetoothDevicesCombo->setVisible(false);
+                    }
+                }
+                else if (index == 1) { // Bluetooth
+                    if (m_connectionManager) {
+                        m_connectionManager->setConnectionType(BlueTooth);
+                        btDeviceLabel->setVisible(true);
+                        m_bluetoothDevicesCombo->setVisible(true);
+
+#ifdef Q_OS_ANDROID
+                        // Request permissions before scanning on Android
+                        requestBluetoothPermissions();
+#else
+                        // Direct scanning on other platforms
+                        scanBluetoothDevices();
+#endif
+                    }
+                }
+            });
+
+    connect(m_bluetoothDevicesCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, &MainWindow::onBluetoothDeviceSelected, Qt::DirectConnection);
+
+    // Make sure the connection manager signals are connected properly
+    if (m_connectionManager) {
+        // Disconnect any existing connections to avoid duplicates
+        disconnect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
+                   this, &MainWindow::onBluetoothDeviceFound);
+        disconnect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
+                   this, &MainWindow::onBluetoothDiscoveryCompleted);
+
+        // Reconnect with direct connection
+        connect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
+                this, &MainWindow::onBluetoothDeviceFound, Qt::DirectConnection);
+        connect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
+                this, &MainWindow::onBluetoothDiscoveryCompleted, Qt::DirectConnection);
+    }
 }
 
 void MainWindow::setupConnections()
 {
     // Connect UI buttons
-    connect(ui->pushConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
-    connect(ui->pushSend, &QPushButton::clicked, this, &MainWindow::onSendClicked);
-    connect(ui->pushRead, &QPushButton::clicked, this, &MainWindow::onReadClicked);
-    connect(ui->pushSetProtocol, &QPushButton::clicked, this, &MainWindow::onSetProtocolClicked);
-    connect(ui->pushGetProtocol, &QPushButton::clicked, this, &MainWindow::onGetProtocolClicked);
-    connect(ui->pushClear, &QPushButton::clicked, this, &MainWindow::onClearClicked);
-    connect(ui->pushReadFault, &QPushButton::clicked, this, &MainWindow::onReadFaultClicked);
-    connect(ui->pushClearFault, &QPushButton::clicked, this, &MainWindow::onClearFaultClicked);
-    connect(ui->pushScan, &QPushButton::clicked, this, &MainWindow::onScanClicked);
-    connect(ui->pushExit, &QPushButton::clicked, this, &MainWindow::onExitClicked);
-    connect(ui->checkSearchPids, &QCheckBox::stateChanged, this, &MainWindow::onSearchPidsStateChanged);
-    connect(ui->btnReadTransFault, &QPushButton::clicked, this, &MainWindow::onReadTransFaultClicked);
-    connect(ui->btnClearTransFault, &QPushButton::clicked, this, &MainWindow::onClearTransFaultClicked);
-    connect(ui->btnReadAirbagFault, &QPushButton::clicked, this, &MainWindow::onReadAirbagFaultClicked);
-    connect(ui->btnClearAirbagFault, &QPushButton::clicked, this, &MainWindow::onClearAirbagFaultClicked);
+    connect(pushConnect, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
+    connect(pushSend, &QPushButton::clicked, this, &MainWindow::onSendClicked);
+    connect(pushRead, &QPushButton::clicked, this, &MainWindow::onReadClicked);
+    connect(pushSetProtocol, &QPushButton::clicked, this, &MainWindow::onSetProtocolClicked);
+    connect(pushGetProtocol, &QPushButton::clicked, this, &MainWindow::onGetProtocolClicked);
+    connect(pushClear, &QPushButton::clicked, this, &MainWindow::onClearClicked);
+    connect(pushReadFault, &QPushButton::clicked, this, &MainWindow::onReadFaultClicked);
+    connect(pushClearFault, &QPushButton::clicked, this, &MainWindow::onClearFaultClicked);
+    connect(pushScan, &QPushButton::clicked, this, &MainWindow::onScanClicked);
+    connect(pushExit, &QPushButton::clicked, this, &MainWindow::onExitClicked);
+    connect(checkSearchPids, &QCheckBox::stateChanged, this, &MainWindow::onSearchPidsStateChanged);
+    connect(btnReadTransFault, &QPushButton::clicked, this, &MainWindow::onReadTransFaultClicked);
+    connect(btnClearTransFault, &QPushButton::clicked, this, &MainWindow::onClearTransFaultClicked);
+    connect(btnReadAirbagFault, &QPushButton::clicked, this, &MainWindow::onReadAirbagFaultClicked);
+    connect(btnClearAirbagFault, &QPushButton::clicked, this, &MainWindow::onClearAirbagFaultClicked);
 
     // Connect ConnectionManager signals
     if(m_connectionManager) {
@@ -137,7 +447,7 @@ void MainWindow::applyStyles()
     ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#001F33").arg(FONT_SIZE);
 
     // Terminal style with marine theme
-    ui->textTerminal->setStyleSheet(QString(
+    textTerminal->setStyleSheet(QString(
         "QTextEdit {"
         "    font: %4pt 'Consolas';"
         "    color: %1;"                     // Light text
@@ -150,10 +460,10 @@ void MainWindow::applyStyles()
 
     // Apply styles to all standard buttons
     QList<QPushButton*> standardButtons = {
-        ui->pushConnect, ui->pushSend, ui->pushRead,
-        ui->pushSetProtocol, ui->pushGetProtocol, ui->pushClear,
-        ui->pushScan, ui->pushReadFault, ui->btnReadTransFault, ui->btnClearTransFault,
-        ui->pushClearFault, ui->btnReadAirbagFault, ui->btnClearAirbagFault, ui->pushExit
+        pushConnect, pushSend, pushRead,
+        pushSetProtocol, pushGetProtocol, pushClear,
+        pushScan, pushReadFault, btnReadTransFault, btnClearTransFault,
+        pushClearFault, btnReadAirbagFault, btnClearAirbagFault, pushExit
     };
 
     for (auto* button : standardButtons) {
@@ -161,7 +471,7 @@ void MainWindow::applyStyles()
     }
 
     // Checkbox style with marine theme
-    ui->checkSearchPids->setStyleSheet(QString(
+    checkSearchPids->setStyleSheet(QString(
         "QCheckBox {"
         "    font-size: %5pt;"
         "    font-weight: bold;"
@@ -202,8 +512,8 @@ void MainWindow::applyStyles()
         "}"
     ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE - 2);
 
-    ui->sendEdit->setStyleSheet(inputStyle);
-    ui->protocolCombo->setStyleSheet(inputStyle + QString(
+    sendEdit->setStyleSheet(inputStyle);
+    protocolCombo->setStyleSheet(inputStyle + QString(
         "QComboBox::drop-down {"
         "    border: none;"
         "    width: 30px;"
@@ -215,7 +525,7 @@ void MainWindow::applyStyles()
     ));
 
     // Interval slider style
-    ui->labelInterval->setStyleSheet(QString(
+    labelInterval->setStyleSheet(QString(
         "QLabel {"
         "    font-size: %2px;"
         "    font-weight: bold;"
@@ -227,7 +537,7 @@ void MainWindow::applyStyles()
         "}"
     ).arg(TEXT_COLOR, QString::number(FONT_SIZE), SECONDARY_COLOR));
 
-    ui->intervalSlider->setStyleSheet(QString(
+    intervalSlider->setStyleSheet(QString(
         "QSlider::groove:horizontal {"
         "    border: none;"
         "    height: 16px;"
@@ -270,43 +580,43 @@ void MainWindow::applyStyles()
 void MainWindow::setupIntervalSlider()
 {
     // Configure slider properties
-    ui->intervalSlider->setMinimum(1);
-    ui->intervalSlider->setMaximum(100);
-    ui->intervalSlider->setSingleStep(5);
-    ui->intervalSlider->setTickInterval(5);
-    ui->intervalSlider->setTickPosition(QSlider::TicksBelow);
-    ui->intervalSlider->setMinimumHeight(50);  // Taller for touch
+    intervalSlider->setMinimum(1);
+    intervalSlider->setMaximum(100);
+    intervalSlider->setSingleStep(5);
+    intervalSlider->setTickInterval(5);
+    intervalSlider->setTickPosition(QSlider::TicksBelow);
+    intervalSlider->setMinimumHeight(50);  // Taller for touch
 
     // Set label alignment
-    ui->labelInterval->setAlignment(Qt::AlignCenter);
+    labelInterval->setAlignment(Qt::AlignCenter);
 
     // Set initial value
     interval = 250;
-    ui->intervalSlider->setValue(interval / 10);  // Convert to slider range
-    ui->labelInterval->setText(QString("%1 ms").arg(interval));
+    intervalSlider->setValue(interval / 10);  // Convert to slider range
+    labelInterval->setText(QString("%1 ms").arg(interval));
 
     // Connect signal
-    connect(ui->intervalSlider, &QSlider::valueChanged, this, &MainWindow::onIntervalSliderChanged);
+    connect(intervalSlider, &QSlider::valueChanged, this, &MainWindow::onIntervalSliderChanged);
 }
 
 void MainWindow::connected()
 {
-    ui->pushConnect->setText(QString("Disconnect"));
+    pushConnect->setText(QString("Disconnect"));
     commandOrder = 0;
     m_initialized = false;
     m_connected = true;
-    ui->textTerminal->append("Elm 327 connected");
+    textTerminal->append("Elm 327 connected");
     send(RESET);
     QThread::msleep(250);
 }
 
 void MainWindow::disconnected()
 {
-    ui->pushConnect->setText(QString("Connect"));
+    pushConnect->setText(QString("Connect"));
     commandOrder = 0;
     m_initialized = false;
     m_connected = false;
-    ui->textTerminal->append("Elm DisConnected");
+    textTerminal->append("Elm DisConnected");
 }
 
 void MainWindow::dataReceived(QString data)
@@ -322,29 +632,37 @@ void MainWindow::dataReceived(QString data)
 
     // Check for errors
     if(isError(data.toUpper().toStdString())) {
-        ui->textTerminal->append("Error : " + data);
+        textTerminal->append("Error : " + data);
     }
     else if (!data.isEmpty()) {
-        ui->textTerminal->append("<- " + data);
+        textTerminal->append("<- " + data);
     }
 
     // Handle initialization sequence
-    if(!m_initialized && initializeCommands.size() == commandOrder) {
-        commandOrder = 0;
-        m_initialized = true;
+    if(!m_initialized) {
+        if(commandOrder >= initializeCommands.size()) {
+            commandOrder = 0;
+            m_initialized = true;
 
-        if(m_searchPidsEnable) {
-            getPids();
+            if(m_searchPidsEnable) {
+                getPids();
+            }
+        }
+        else {
+            // Send next initialization command
+            QString nextCommand = initializeCommands[commandOrder];
+            textTerminal->append("-> Init: " + nextCommand);
+            commandOrder++;
+
+            // Delay to ensure the command is sent properly
+            QThread::msleep(100);
+
+            // Send the command
+            m_connectionManager->send(nextCommand);
         }
     }
-    else if(!m_initialized && commandOrder < initializeCommands.size()) {
-        send(initializeCommands[commandOrder]);
-        commandOrder++;
-        QThread::msleep(50);
-    }
-
     // Process the data if initialized
-    if(m_initialized && !data.isEmpty()) {
+    else if(m_initialized && !data.isEmpty()) {
         try {
             data = cleanData(data);
             analysData(data);
@@ -368,15 +686,14 @@ QString MainWindow::cleanData(const QString& input)
 
 void MainWindow::stateChanged(QString state)
 {
-    ui->textTerminal->append(state);
+    textTerminal->append(state);
 }
-
 
 QString MainWindow::send(const QString &command)
 {
     if(m_connectionManager && m_connected) {
         auto cmd = cleanData(command);
-        ui->textTerminal->append("-> " + cmd);
+        textTerminal->append("-> " + cmd);
 
         m_connectionManager->send(cmd);
         QThread::msleep(5);  // Small delay for processing
@@ -392,14 +709,14 @@ void MainWindow::getPids()
 
     runtimeCommands.clear();
     elm->resetPids();
-    ui->textTerminal->append("-> Searching available pids.");
+    textTerminal->append("-> Searching available pids.");
 
     QString supportedPIDs = elm->get_available_pids();
-    ui->textTerminal->append("<- Pids:  " + supportedPIDs);
+    textTerminal->append("<- Pids:  " + supportedPIDs);
 
     if(!supportedPIDs.isEmpty()) {
         if(supportedPIDs.contains(",")) {
-            runtimeCommands = supportedPIDs.split(",");            
+            runtimeCommands = supportedPIDs.split(",");
         }
     }
 }
@@ -433,11 +750,10 @@ QString MainWindow::getData(const QString &command)
 
 void MainWindow::saveSettings()
 {
-
 #ifdef Q_OS_ANDROID
     QString ip = "192.168.0.10";
 #else
-     // elm -n 35000 -s car
+    // elm -n 35000 -s car
     QString ip = "192.168.0.10";
 #endif
 
@@ -503,12 +819,12 @@ void MainWindow::analysData(const QString &dataReceived)
                     return;  // Invalid A value
                 }
             }
-            // ui->textTerminal->append("Pid: " + QString::number(PID) +
+            // textTerminal->append("Pid: " + QString::number(PID) +
             //                          "  A: " + QString::number(A) +
             //                          "  B: " + QString::number(B));
         }
         catch (const std::exception& e) {
-            ui->textTerminal->append("Error parsing data: " + QString(e.what()));
+            textTerminal->append("Error parsing data: " + QString(e.what()));
             return;
         }
     }
@@ -520,8 +836,8 @@ void MainWindow::analysData(const QString &dataReceived)
         vec.insert(vec.begin(), resp.begin() + 2, resp.end());
         std::pair<int, bool> dtcNumber = elm->decodeNumberOfDtc(vec);
         QString milText = dtcNumber.second ? "true" : "false";
-        ui->textTerminal->append("Number of DTCs: " + QString::number(dtcNumber.first) +
-                                 ", MIL on: " + milText);
+        textTerminal->append("Number of DTCs: " + QString::number(dtcNumber.first) +
+                             ", MIL on: " + milText);
     }
 
     // Handle Mode 03 (DTC codes) - CAN format with ECU ID (e.g. 7E8 02 43 ...)
@@ -530,7 +846,7 @@ void MainWindow::analysData(const QString &dataReceived)
         resp[2].compare("43", Qt::CaseInsensitive) == 0) {
 
         // This is a CAN format response with ECU ID
-        ui->textTerminal->append("CAN format DTC response detected from ECU: " + resp[0]);
+        textTerminal->append("CAN format DTC response detected from ECU: " + resp[0]);
 
         vec.clear();
         // Skip ECU ID (7Ex), byte count, and response code (43)
@@ -541,7 +857,7 @@ void MainWindow::analysData(const QString &dataReceived)
         for(const auto& val : vec) {
             debugStr += val + " ";
         }
-        ui->textTerminal->append(debugStr);
+        textTerminal->append(debugStr);
 
         // Process DTCs
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
@@ -550,10 +866,10 @@ void MainWindow::analysData(const QString &dataReceived)
             for(const auto &code : dtcCodes) {
                 dtc_list.append(code + " ");
             }
-            ui->textTerminal->append(dtc_list);
+            textTerminal->append(dtc_list);
         }
         else {
-            ui->textTerminal->append("No DTCs reported from ECU " + resp[0]);
+            textTerminal->append("No DTCs reported from ECU " + resp[0]);
         }
     }
     // Handle standard Mode 03 (DTC codes) response without CAN headers
@@ -566,7 +882,7 @@ void MainWindow::analysData(const QString &dataReceived)
         for(const auto& val : vec) {
             debugStr += val + " ";
         }
-        ui->textTerminal->append(debugStr);
+        textTerminal->append(debugStr);
 
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
         if(!dtcCodes.empty()) {
@@ -574,10 +890,37 @@ void MainWindow::analysData(const QString &dataReceived)
             for(const auto &code : dtcCodes) {
                 dtc_list.append(code + " ");
             }
-            ui->textTerminal->append(dtc_list);
+            textTerminal->append(dtc_list);
         }
         else {
-            ui->textTerminal->append("Number of DTCs: 0");
+            textTerminal->append("Number of DTCs: 0");
+        }
+    }
+}
+
+void MainWindow::onConnectClicked()
+{
+    if(pushConnect->text() == "Connect") {
+        textTerminal->clear();
+
+        if(m_connectionManager) {
+            // If Bluetooth is selected and a device is chosen, pass the address
+            if (m_connectionTypeCombo->currentIndex() == 1) { // Bluetooth
+                int deviceIndex = m_bluetoothDevicesCombo->currentIndex();
+                if (deviceIndex > 0 && m_deviceAddressMap.contains(deviceIndex)) {
+                    QString deviceAddress = m_deviceAddressMap[deviceIndex];
+                    m_connectionManager->connectElm(deviceAddress);
+                } else {
+                    m_connectionManager->connectElm(); // Will start discovery
+                }
+            } else {
+                m_connectionManager->connectElm(); // WiFi connection
+            }
+        }
+    }
+    else {
+        if(m_connectionManager) {
+            m_connectionManager->disConnectElm();
         }
     }
 }
@@ -587,7 +930,7 @@ void MainWindow::onSendClicked()
     if(!m_connected)
         return;
 
-    QString command = ui->sendEdit->text();
+    QString command = sendEdit->text();
     send(command);
 }
 
@@ -597,14 +940,14 @@ void MainWindow::onReadClicked()
         return;
 
     m_reading = true;
-    QString command = ui->sendEdit->text();
+    QString command = sendEdit->text();
     auto data = getData(command);
 
     if(isError(data.toUpper().toStdString())) {
-        ui->textTerminal->append("Error : " + data);
+        textTerminal->append("Error : " + data);
     }
     else if (!data.isEmpty()) {
-        ui->textTerminal->append("<- " + data);
+        textTerminal->append("<- " + data);
     }
 
     analysData(data);
@@ -616,12 +959,12 @@ void MainWindow::onSetProtocolClicked()
     if(!m_connected)
         return;
 
-    QString index = QString::number(ui->protocolCombo->currentIndex());
-    if(ui->protocolCombo->currentIndex() == 10)
+    QString index = QString::number(protocolCombo->currentIndex());
+    if(protocolCombo->currentIndex() == 10)
         index = "A";
-    else if(ui->protocolCombo->currentIndex() == 11)
+    else if(protocolCombo->currentIndex() == 11)
         index = "B";
-    else if(ui->protocolCombo->currentIndex() == 12)
+    else if(protocolCombo->currentIndex() == 12)
         index = "C";
 
     QString command = "ATSP" + index;
@@ -641,13 +984,13 @@ void MainWindow::onClearClicked()
     saveSettings();
     runtimeCommands.clear();
 
-    ui->textTerminal->clear();
+    textTerminal->clear();
     if(m_settingsManager) {
-        ui->textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " +
-                                 QString::number(m_settingsManager->getWifiPort()));
+        textTerminal->append("Wifi Ip: " + m_settingsManager->getWifiIp() + " : " +
+                             QString::number(m_settingsManager->getWifiPort()));
     }
-    ui->textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
-                             "x" + QString::number(desktopRect.height()));
+    textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
+                         "x" + QString::number(desktopRect.height()));
 
     send(RESET);
 }
@@ -656,11 +999,7 @@ void MainWindow::onReadFaultClicked()
 {
     if(!m_connected)
         return;
-    ui->textTerminal->append("-> Reading PCM trouble codes...");
-
-    // // Select the PCM/Engine control module
-    // send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
-    // QThread::msleep(100);
+    textTerminal->append("-> Reading PCM trouble codes...");
 
     // Request PCM DTCs (using standard Mode 03 request)
     send(READ_TROUBLE);
@@ -671,17 +1010,13 @@ void MainWindow::onClearFaultClicked()
 {
     if(!m_connected)
         return;
-    ui->textTerminal->append("-> Clearing PCM trouble codes...");
-
-    // // Select the PCM/Engine control module
-    // send(ONLY_ENGINE_ECU);  // Set header for PCM/Engine ECU
-    // QThread::msleep(100);
+    textTerminal->append("-> Clearing PCM trouble codes...");
 
     // Clear DTCs (using standard Mode 04 request)
     send(CLEAR_TROUBLE);
     QThread::msleep(250);
 
-    ui->textTerminal->append("PCM codes cleared. Please cycle ignition.");
+    textTerminal->append("PCM codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onReadTransFaultClicked()
@@ -689,7 +1024,7 @@ void MainWindow::onReadTransFaultClicked()
     if(!m_connected)
         return;
 
-    ui->textTerminal->append("-> Reading transmission trouble codes...");
+    textTerminal->append("-> Reading transmission trouble codes...");
 
     // First try to select the transmission control module
     send(TRANS_ECU_HEADER);  // Set header for transmission ECU
@@ -705,7 +1040,7 @@ void MainWindow::onClearTransFaultClicked()
     if(!m_connected)
         return;
 
-    ui->textTerminal->append("-> Clearing transmission trouble codes...");
+    textTerminal->append("-> Clearing transmission trouble codes...");
 
     // First try to select the transmission control module
     send(TRANS_ECU_HEADER);  // Set header for transmission ECU
@@ -715,14 +1050,14 @@ void MainWindow::onClearTransFaultClicked()
     send(CLEAR_TROUBLE);
     QThread::msleep(250);  // Wait for ECU to process
 
-    ui->textTerminal->append("Transmission codes cleared. Please cycle ignition.");
+    textTerminal->append("Transmission codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onReadAirbagFaultClicked()
 {
     if(!m_connected)
         return;
-    ui->textTerminal->append("-> Reading Airbag/SRS trouble codes...");
+    textTerminal->append("-> Reading Airbag/SRS trouble codes...");
 
     // First select the Airbag control module
     send(AIRBAG_ECU_HEADER);  // Set header for Airbag ECU (try 7D0 if this doesn't work)
@@ -737,7 +1072,7 @@ void MainWindow::onClearAirbagFaultClicked()
 {
     if(!m_connected)
         return;
-    ui->textTerminal->append("-> Clearing Airbag/SRS trouble codes...");
+    textTerminal->append("-> Clearing Airbag/SRS trouble codes...");
 
     // First select the Airbag control module
     send(AIRBAG_ECU_HEADER);  // Set header for Airbag ECU
@@ -747,7 +1082,7 @@ void MainWindow::onClearAirbagFaultClicked()
     send(CLEAR_TROUBLE);
     QThread::msleep(250);
 
-    ui->textTerminal->append("Airbag codes cleared. Please cycle ignition.");
+    textTerminal->append("Airbag codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onScanClicked()
@@ -762,7 +1097,7 @@ void MainWindow::onScanClicked()
 void MainWindow::onIntervalSliderChanged(int value)
 {
     interval = value * 10;  // Scale to 10-1000ms range
-    ui->labelInterval->setText(QString("%1 ms").arg(interval));
+    labelInterval->setText(QString("%1 ms").arg(interval));
 }
 
 void MainWindow::onSearchPidsStateChanged(int state)
@@ -784,134 +1119,56 @@ void MainWindow::onExitClicked()
     QApplication::quit();
 }
 
-void MainWindow::setupBluetoothUI()
-{
-    ui->m_connectionTypeCombo->addItem("WiFi");
-    ui->m_connectionTypeCombo->addItem("Bluetooth");
-
-    ui->m_bluetoothDevicesCombo->addItem("Select device...");
-    //ui->m_bluetoothDevicesCombo->setVisible(false);
-
-    // Style the new components
-    const int FONT_SIZE = 20;
-    const QString TEXT_COLOR = "#E6F3FF";
-    const QString SECONDARY_COLOR = "#002D4D";
-    const QString BORDER_COLOR = "#004C80";
-    const QString ACCENT_COLOR = "#0073BF";
-
-    const QString inputStyle = QString(
-                                   "QWidget {"
-                                   "    font-size: %5pt;"
-                                   "    font-weight: bold;"
-                                   "    color: %1;"
-                                   "    background-color: %2;"
-                                   "    border: 1px solid %3;"
-                                   "    border-radius: 6px;"
-                                   "    padding: 8px;"
-                                   "}"
-                                   "QWidget:focus {"
-                                   "    border: 2px solid %4;"
-                                   "}"
-                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE - 2);
-
-    ui->m_connectionTypeCombo->setStyleSheet(inputStyle + QString(
-                                             "QComboBox::drop-down {"
-                                             "    border: none;"
-                                             "    width: 30px;"
-                                             "}"
-                                             "QComboBox::down-arrow {"
-                                             "    width: 16px;"
-                                             "    height: 16px;"
-                                             "}"
-                                             ));
-
-    ui->m_bluetoothDevicesCombo->setStyleSheet(inputStyle + QString(
-                                               "QComboBox::drop-down {"
-                                               "    border: none;"
-                                               "    width: 30px;"
-                                               "}"
-                                               "QComboBox::down-arrow {"
-                                               "    width: 16px;"
-                                               "    height: 16px;"
-                                               "}"
-                                               ));
-
-    ui->connectionTypeLabel->setStyleSheet(QString(
-                                           "QLabel {"
-                                           "    font-size: %2pt;"
-                                           "    font-weight: bold;"
-                                           "    color: %1;"
-                                           "}"
-                                           ).arg(TEXT_COLOR).arg(FONT_SIZE));
-
-    ui->btDeviceLabel->setStyleSheet(QString(
-                                     "QLabel {"
-                                     "    font-size: %2pt;"
-                                     "    font-weight: bold;"
-                                     "    color: %1;"
-                                     "}"
-                                     ).arg(TEXT_COLOR).arg(FONT_SIZE));
-    // ui->btDeviceLabel->setVisible(false);
-
-    // Connect signals
-    connect(ui->m_connectionTypeCombo, &QComboBox::currentIndexChanged,
-            [this](int index) {
-                if (index == 0) {
-                    if (m_connectionManager) {
-                        m_connectionManager->setConnectionType(Wifi);
-                    }
-                }
-                else if (index == 1) { // Bluetooth
-                    if (m_connectionManager) {
-                        m_connectionManager->setConnectionType(BlueTooth);
-                        scanBluetoothDevices();
-                    }
-                }
-            });
-
-    connect(ui->m_bluetoothDevicesCombo, &QComboBox::currentIndexChanged,
-            this, &MainWindow::onBluetoothDeviceSelected);
-
-    // Connect to ConnectionManager signals for Bluetooth discovery
-    if (m_connectionManager) {
-        connect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
-                this, &MainWindow::onBluetoothDeviceFound);
-        connect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
-                this, &MainWindow::onBluetoothDiscoveryCompleted);
-    }
-}
-
 void MainWindow::scanBluetoothDevices()
 {
     // Clear previous devices
-    ui->m_bluetoothDevicesCombo->clear();
-    ui->m_bluetoothDevicesCombo->addItem("Select device...");
+    m_bluetoothDevicesCombo->clear();
+    m_bluetoothDevicesCombo->addItem("Select device...");
     m_deviceAddressMap.clear();
+
+    // Display scanning message
+    textTerminal->append("Scanning for Bluetooth devices...");
+
+    // Process events to make sure UI updates before starting scan
+    QCoreApplication::processEvents();
 
     // Start scanning
     if (m_connectionManager) {
+        // Explicitly reconnect signals for this scan operation
+        connect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
+                this, &MainWindow::onBluetoothDeviceFound, Qt::DirectConnection);
+        connect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
+                this, &MainWindow::onBluetoothDiscoveryCompleted, Qt::DirectConnection);
+
         m_connectionManager->startBluetoothDiscovery();
     }
-    ui->textTerminal->append("Scanning for Bluetooth devices...");
 }
 
 void MainWindow::onBluetoothDeviceFound(const QString &name, const QString &address)
 {
     // Add device to combo box and map
-    int index = ui->m_bluetoothDevicesCombo->count();
-    ui->m_bluetoothDevicesCombo->addItem(name);
+    int index = m_bluetoothDevicesCombo->count();
+    m_bluetoothDevicesCombo->addItem(name + " (" + address + ")");
     m_deviceAddressMap[index] = address;
 
-    ui->textTerminal->append("Found device: " + name + " (" + address + ")");
+    // Display in terminal with QDebug for debugging
+    textTerminal->append("Found device: " + name + " (" + address + ")");
+    qDebug() << "Bluetooth device found:" << name << address << "at index" << index;
+
+    // Process events to update UI immediately
+    QCoreApplication::processEvents();
 }
 
 void MainWindow::onBluetoothDiscoveryCompleted()
 {
-    if (ui->m_bluetoothDevicesCombo->count() <= 1) {
-        ui->textTerminal->append("No Bluetooth devices found.");
+    if (m_bluetoothDevicesCombo->count() <= 1) {
+        textTerminal->append("No Bluetooth devices found.");
     } else {
-        ui->textTerminal->append("Found " + QString::number(ui->m_bluetoothDevicesCombo->count() - 1) + " Bluetooth devices.");
+        textTerminal->append("Found " + QString::number(m_bluetoothDevicesCombo->count() - 1) + " Bluetooth devices.");
     }
+
+    // Process events to update UI
+    QCoreApplication::processEvents();
 }
 
 void MainWindow::onBluetoothDeviceSelected(int index)
@@ -921,33 +1178,68 @@ void MainWindow::onBluetoothDeviceSelected(int index)
     }
     if (m_deviceAddressMap.contains(index)) {
         QString selectedAddress = m_deviceAddressMap[index];
-        ui->textTerminal->append("Selected device with address: " + selectedAddress);
+        textTerminal->append("Selected device with address: " + selectedAddress);
     }
 }
 
-void MainWindow::onConnectClicked()
+QString MainWindow::getSelectedBluetoothDeviceAddress() const
 {
-    if(ui->pushConnect->text() == "Connect") {
-        ui->textTerminal->clear();
-
-        if(m_connectionManager) {
-            // If Bluetooth is selected and a device is chosen, pass the address
-            if (ui->m_connectionTypeCombo->currentIndex() == 1) { // Bluetooth
-                int deviceIndex = ui->m_bluetoothDevicesCombo->currentIndex();
-                if (deviceIndex > 0 && m_deviceAddressMap.contains(deviceIndex)) {
-                    QString deviceAddress = m_deviceAddressMap[deviceIndex];
-                    m_connectionManager->connectElm(deviceAddress);
-                } else {
-                    m_connectionManager->connectElm(); // Will start discovery
-                }
-            } else {
-                m_connectionManager->connectElm(); // WiFi connection
-            }
-        }
+    int index = m_bluetoothDevicesCombo->currentIndex();
+    if (index > 0 && m_deviceAddressMap.contains(index)) {
+        return m_deviceAddressMap[index];
     }
-    else {
-        if(m_connectionManager) {
-            m_connectionManager->disConnectElm();
-        }
+    return QString();
+}
+
+#if defined(Q_OS_ANDROID)
+void MainWindow::requestBluetoothPermissions()
+{
+    QBluetoothPermission bluetoothPermission;
+    bluetoothPermission.setCommunicationModes(QBluetoothPermission::Access);
+
+    switch (qApp->checkPermission(bluetoothPermission)) {
+    case Qt::PermissionStatus::Undetermined:
+        qApp->requestPermission(bluetoothPermission, this,
+                                [this](const QPermission &permission) {
+                                    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {
+                                        textTerminal->append("Bluetooth permission granted. Starting scan...");
+                                        scanBluetoothDevices();
+                                    } else {
+                                        textTerminal->append("Bluetooth permission denied. Cannot proceed.");
+                                    }
+                                });
+        break;
+    case Qt::PermissionStatus::Granted:
+        textTerminal->append("Bluetooth permission already granted. Starting scan...");
+        scanBluetoothDevices();
+        break;
+    case Qt::PermissionStatus::Denied:
+        textTerminal->append("Bluetooth permission denied. Please enable in Settings.");
+        break;
+    }
+
+    // Also check for location permission which is required for Bluetooth scanning
+    QLocationPermission locationPermission;
+    locationPermission.setAccuracy(QLocationPermission::Approximate);
+
+    switch (qApp->checkPermission(locationPermission)) {
+    case Qt::PermissionStatus::Undetermined:
+        qApp->requestPermission(locationPermission, this,
+                                [this](const QPermission &permission) {
+                                    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {
+                                        textTerminal->append("Location permission granted.");
+                                        // Permission granted - but we already started scan in Bluetooth permission handler
+                                    } else {
+                                        textTerminal->append("Location permission denied. Bluetooth scanning may not work properly.");
+                                    }
+                                });
+        break;
+    case Qt::PermissionStatus::Granted:
+        textTerminal->append("Location permission already granted.");
+        break;
+    case Qt::PermissionStatus::Denied:
+        textTerminal->append("Location permission denied. Bluetooth scanning may not work properly.");
+        break;
     }
 }
+#endif
