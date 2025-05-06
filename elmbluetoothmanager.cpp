@@ -81,35 +81,37 @@ void ElmBluetoothManager::deviceDiscovered(const QBluetoothDeviceInfo &device)
     // Get device name
     QString deviceName = device.name();
 
+    if(deviceName.isEmpty())
+        return;
+
     // Check if this device is likely an OBD adapter
     bool isObdDevice = false;
-    QStringList obdKeywords = {"OBD", "ELM", "OBDII", "OBD2", "OBD-II"};
+    QStringList obdKeywords = {"OBD", "ELM", "OBDII", "OBD2", "OBD-II", "Viecar", "V-Link", "OBDLink", " vLinker"};
 
     // Case-insensitive check for OBD-related terms in the device name
     for (const QString &keyword : obdKeywords) {
         if (deviceName.contains(keyword, Qt::CaseInsensitive)) {
             isObdDevice = true;
+            // Add device to the list
+            m_discoveredDevices.append(device);
+
+            // Emit signal with device information
+            emit deviceFound(deviceName, device.address().toString());
+
+            // Log device discovery
+            if (isObdDevice) {
+                emit stateChanged("Found OBD device: " + deviceName);
+            } else {
+                emit stateChanged("Found device: " + deviceName);
+            }
+
+            // If this is an OBD device, we can stop scanning to save time and battery
+            if (isObdDevice) {
+                stopDeviceDiscovery();
+                emit stateChanged("OBD device found. Scanning stopped.");
+            }
             break;
         }
-    }
-
-    // Add device to the list
-    m_discoveredDevices.append(device);
-
-    // Emit signal with device information
-    emit deviceFound(deviceName, device.address().toString());
-
-    // Log device discovery
-    if (isObdDevice) {
-        emit stateChanged("Found OBD device: " + deviceName);
-    } else {
-        emit stateChanged("Found device: " + deviceName);
-    }
-
-    // If this is an OBD device, we can stop scanning to save time and battery
-    if (isObdDevice) {
-        stopDeviceDiscovery();
-        emit stateChanged("OBD device found. Scanning stopped.");
     }
 }
 

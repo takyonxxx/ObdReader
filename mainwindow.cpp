@@ -43,7 +43,6 @@ MainWindow::MainWindow(QWidget *parent)
     // Display initial status
     textTerminal->append("Resolution : " + QString::number(desktopRect.width()) +
                        "x" + QString::number(desktopRect.height()));
-    textTerminal->append("Press Connect Button");
 }
 
 MainWindow::~MainWindow()
@@ -80,72 +79,66 @@ void MainWindow::setupUi()
     connectionTypeLabel->setMinimumSize(80, 48);
 
     m_connectionTypeCombo = new QComboBox(centralWidget);
-    m_connectionTypeCombo->setMinimumHeight(48);
+    m_connectionTypeCombo->setMinimumHeight(44);
 
     btDeviceLabel = new QLabel("BT Device:", centralWidget);
     btDeviceLabel->setMinimumSize(80, 48);
 
     m_bluetoothDevicesCombo = new QComboBox(centralWidget);
-    m_bluetoothDevicesCombo->setMinimumHeight(48);
+    m_bluetoothDevicesCombo->setMinimumHeight(44);
 
     // Connection controls
     pushConnect = new QPushButton("Connect", centralWidget);
-    pushConnect->setMinimumHeight(48);
+    pushConnect->setMinimumHeight(44);
 
     checkSearchPids = new QCheckBox("Get Pids", centralWidget);
-    checkSearchPids->setMinimumHeight(48);
+    checkSearchPids->setMinimumHeight(44);
     checkSearchPids->setIconSize(QSize(32, 32));
     checkSearchPids->setChecked(false);
 
     // Spacer after connection controls
-    verticalSpacer = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+    verticalSpacer = new QSpacerItem(20, 5, QSizePolicy::Minimum, QSizePolicy::Fixed);
 
     // Fault reading buttons
     pushReadFault = new QPushButton("Read Fault", centralWidget);
-    pushReadFault->setMinimumHeight(48);
+    pushReadFault->setMinimumHeight(44);
 
     pushClearFault = new QPushButton("Clear Fault", centralWidget);
-    pushClearFault->setMinimumHeight(48);
+    pushClearFault->setMinimumHeight(44);
 
-    btnReadTransFault = new QPushButton("Read Transmission", centralWidget);
-    btnReadTransFault->setMinimumHeight(48);
+    btnReadTransFault = new QPushButton("Read GearBox", centralWidget);
+    btnReadTransFault->setMinimumHeight(44);
 
-    btnClearTransFault = new QPushButton("Clear Transmission", centralWidget);
-    btnClearTransFault->setMinimumHeight(48);
-
-    btnReadAirbagFault = new QPushButton("Read Airbag", centralWidget);
-    btnReadAirbagFault->setMinimumHeight(48);
-
-    btnClearAirbagFault = new QPushButton("Clear Airbag", centralWidget);
-    btnClearAirbagFault->setMinimumHeight(48);
+    btnClearTransFault = new QPushButton("Clear GearBox", centralWidget);
+    btnClearTransFault->setMinimumHeight(44);
 
     // Spacer after fault buttons
-    verticalSpacer2 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+    verticalSpacer2 = new QSpacerItem(20, 5, QSizePolicy::Minimum, QSizePolicy::Fixed);
 
     // Scan and Read buttons
     pushScan = new QPushButton("Scan", centralWidget);
-    pushScan->setMinimumHeight(48);
+    pushScan->setMinimumHeight(44);
 
     pushRead = new QPushButton("Read", centralWidget);
-    pushRead->setMinimumHeight(48);
+    pushRead->setMinimumHeight(44);
 
     // Spacer after scan/read buttons
-    verticalSpacer3 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+    verticalSpacer3 = new QSpacerItem(20, 5, QSizePolicy::Minimum, QSizePolicy::Fixed);
 
     // Command input and send
     sendEdit = new QLineEdit(centralWidget);
-    sendEdit->setMinimumHeight(48);
+    sendEdit->setMinimumHeight(44);
     sendEdit->setText("0101"); // Default command
 
     pushSend = new QPushButton("    Send    ", centralWidget);
-    pushSend->setMinimumHeight(48);
+    pushSend->setMinimumHeight(44);
 
     // Spacer after command input
-    verticalSpacer4 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::Fixed);
+    verticalSpacer4 = new QSpacerItem(20, 5, QSizePolicy::Minimum, QSizePolicy::Fixed);
 
     // Protocol selection
     protocolCombo = new QComboBox(centralWidget);
-    protocolCombo->setMinimumHeight(48);
+    protocolCombo->setMinimumHeight(44);
     protocolCombo->addItem("Automatic protocol detection");
     protocolCombo->addItem("SAE J1850 PWM (41.6 kbaud)");
     protocolCombo->addItem("SAE J1850 VPW (10.4 kbaud)");
@@ -161,10 +154,10 @@ void MainWindow::setupUi()
     protocolCombo->addItem("User2 CAN (11* bit ID, 50* kbaud)");
 
     pushSetProtocol = new QPushButton("Set", centralWidget);
-    pushSetProtocol->setMinimumHeight(48);
+    pushSetProtocol->setMinimumHeight(44);
 
     pushGetProtocol = new QPushButton("Get", centralWidget);
-    pushGetProtocol->setMinimumHeight(48);
+    pushGetProtocol->setMinimumHeight(44);
 
     // Interval controls
     intervalSlider = new QSlider(Qt::Horizontal, centralWidget);
@@ -175,89 +168,64 @@ void MainWindow::setupUi()
     labelInterval->setAlignment(Qt::AlignCenter);
 
     // Terminal display
-    textTerminal = new QTextBrowser(centralWidget);
-    textTerminal->setMinimumHeight(150);
-    QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+    textTerminal = new QTextBrowser(centralWidget);    
+    QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     sizePolicy.setHorizontalStretch(0);
     sizePolicy.setVerticalStretch(1);
     textTerminal->setSizePolicy(sizePolicy);
 
     // Bottom buttons
     pushClear = new QPushButton("Reset ", centralWidget);
-    pushClear->setMinimumHeight(48);
+    pushClear->setMinimumHeight(44);
 
     pushExit = new QPushButton("Exit", centralWidget);
-    pushExit->setMinimumHeight(48);
+    pushExit->setMinimumHeight(44);
 
-    // Add all widgets to the layout
-
-    // Row 0: Connection type
     gridLayoutElm->addWidget(connectionTypeLabel, 0, 0);
     gridLayoutElm->addWidget(m_connectionTypeCombo, 0, 1, 1, 3);
 
-    // Row 1: BT Device
     gridLayoutElm->addWidget(btDeviceLabel, 1, 0);
     gridLayoutElm->addWidget(m_bluetoothDevicesCombo, 1, 1, 1, 3);
 
-    // Row 2: Connect button and Get Pids checkbox
     gridLayoutElm->addWidget(pushConnect, 2, 0, 1, 2);
     gridLayoutElm->addWidget(checkSearchPids, 2, 2, 1, 2);
 
-    // Row 3: Spacer
     gridLayoutElm->addItem(verticalSpacer, 3, 0, 1, 4);
 
-    // Row 10: Fault buttons
-    gridLayoutElm->addWidget(pushReadFault, 10, 0, 1, 2);
-    gridLayoutElm->addWidget(pushClearFault, 10, 2, 1, 2);
+    gridLayoutElm->addWidget(pushReadFault, 4, 0, 1, 2);
+    gridLayoutElm->addWidget(pushClearFault, 4, 2, 1, 2);
 
-    // Row 11: Transmission buttons
-    gridLayoutElm->addWidget(btnReadTransFault, 11, 0, 1, 2);
-    gridLayoutElm->addWidget(btnClearTransFault, 11, 2, 1, 2);
+    gridLayoutElm->addWidget(btnReadTransFault, 5, 0, 1, 2);
+    gridLayoutElm->addWidget(btnClearTransFault, 5, 2, 1, 2);
 
-    // Row 12: Airbag buttons
-    gridLayoutElm->addWidget(btnReadAirbagFault, 12, 0, 1, 2);
-    gridLayoutElm->addWidget(btnClearAirbagFault, 12, 2, 1, 2);
+    gridLayoutElm->addItem(verticalSpacer2, 6, 0, 1, 4);
 
-    // Row 13: Spacer
-    gridLayoutElm->addItem(verticalSpacer2, 13, 0, 1, 4);
+    gridLayoutElm->addWidget(sendEdit, 7, 0, 1, 2);
+    gridLayoutElm->addWidget(pushRead, 7, 2, 1, 2);
 
-    // Row 14: Scan and Read buttons
-    gridLayoutElm->addWidget(pushScan, 14, 0, 1, 2);
-    gridLayoutElm->addWidget(pushRead, 14, 2, 1, 2);
+    gridLayoutElm->addItem(verticalSpacer3, 8, 0, 1, 4);
 
-    // Row 16: Spacer
-    gridLayoutElm->addItem(verticalSpacer3, 16, 0, 1, 4);
+    gridLayoutElm->addWidget(pushScan, 9, 0, 1, 2);
+    gridLayoutElm->addWidget(pushSend, 9, 2, 1, 2);
 
-    // Row 17: Command input and Send button
-    gridLayoutElm->addWidget(sendEdit, 17, 0, 1, 2);
-    gridLayoutElm->addWidget(pushSend, 17, 2, 1, 2);
+    gridLayoutElm->addItem(verticalSpacer4, 10, 0, 1, 4);
 
-    // Row 18: Spacer
-    gridLayoutElm->addItem(verticalSpacer4, 18, 0, 1, 4);
+    gridLayoutElm->addWidget(protocolCombo, 11, 0, 1, 2);
+    gridLayoutElm->addWidget(pushSetProtocol, 11, 2);
+    gridLayoutElm->addWidget(pushGetProtocol, 11, 3);
 
-    // Row 19: Protocol selection
-    gridLayoutElm->addWidget(protocolCombo, 19, 0, 1, 2);
-    gridLayoutElm->addWidget(pushSetProtocol, 19, 2);
-    gridLayoutElm->addWidget(pushGetProtocol, 19, 3);
+    gridLayoutElm->addWidget(intervalSlider, 12, 0, 1, 2);
+    gridLayoutElm->addWidget(labelInterval, 12, 2, 1, 2);
 
-    // Row 20: Interval controls
-    gridLayoutElm->addWidget(intervalSlider, 20, 0, 1, 2);
-    gridLayoutElm->addWidget(labelInterval, 20, 2, 1, 2);
+    gridLayoutElm->addWidget(textTerminal, 13, 0, 1, 4);
 
-    // Row 24: Terminal
-    gridLayoutElm->addWidget(textTerminal, 24, 0, 1, 4);
+    gridLayoutElm->addWidget(pushClear, 14, 0);
+    gridLayoutElm->addWidget(pushExit, 14, 1, 1, 3);
 
-    // Row 25: Bottom buttons
-    gridLayoutElm->addWidget(pushClear, 25, 0);
-    gridLayoutElm->addWidget(pushExit, 25, 1, 1, 3);
-
-    // Add gridLayoutElm to verticalLayout
     verticalLayout->addLayout(gridLayoutElm);
 
-    // Add verticalLayout to the main gridLayout
     gridLayout->addLayout(verticalLayout, 0, 0);
 
-    // Set up Bluetooth UI specific functionality
     setupBluetoothUI();
 }
 
@@ -393,8 +361,6 @@ void MainWindow::setupConnections()
     connect(checkSearchPids, &QCheckBox::stateChanged, this, &MainWindow::onSearchPidsStateChanged);
     connect(btnReadTransFault, &QPushButton::clicked, this, &MainWindow::onReadTransFaultClicked);
     connect(btnClearTransFault, &QPushButton::clicked, this, &MainWindow::onClearTransFaultClicked);
-    connect(btnReadAirbagFault, &QPushButton::clicked, this, &MainWindow::onReadAirbagFaultClicked);
-    connect(btnClearAirbagFault, &QPushButton::clicked, this, &MainWindow::onClearAirbagFaultClicked);
 
     // Connect ConnectionManager signals
     if(m_connectionManager) {
@@ -407,174 +373,257 @@ void MainWindow::setupConnections()
 
 void MainWindow::applyStyles()
 {
-    // Font size constant
+    // Font size constant - slightly increased for better readability on automotive displays
     const int FONT_SIZE = 20;
 
-    // Marine theme color palette
-    const QString PRIMARY_COLOR = "#005999";      // Lighter marine blue
-    const QString SECONDARY_COLOR = "#002D4D";    // Darker marine blue
-    const QString ACCENT_COLOR = "#0073BF";       // Bright marine blue
-    const QString TEXT_COLOR = "#E6F3FF";         // Light blue-white
-    const QString BORDER_COLOR = "#004C80";       // Mid marine blue
-    const QString BACKGROUND_COLOR = "#003366";   // Main background
+    // Enhanced marine theme color palette with better contrast for OBD scanner
+    const QString PRIMARY_COLOR = "#0077CC";      // Brighter marine blue
+    const QString SECONDARY_COLOR = "#003A66";    // Darker marine blue
+    const QString ACCENT_COLOR = "#00AAFF";       // Vibrant highlight blue
+    const QString TEXT_COLOR = "#F0F8FF";         // Crisp white-blue text
+    const QString BORDER_COLOR = "#005799";       // Mid marine blue
+    const QString BACKGROUND_COLOR = "#00274D";   // Deeper background
 
     // Main window background
     this->setStyleSheet(
         "QMainWindow {"
         "    background-color: " + BACKGROUND_COLOR + ";"
-        "}"
-    );
+                             "}"
+        );
 
-    // Base button style
+    // Enhanced button style for OBD scanner controls
     const QString buttonBaseStyle = QString(
-        "QPushButton {"
-        "    font-size: %5pt;"
-        "    font-weight: bold;"
-        "    color: %1;"                          // TEXT_COLOR
-        "    background-color: %2;"               // SECONDARY_COLOR
-        "    border-radius: 6px;"
-        "    padding: 4px 6px;"
-        "    margin: 2px;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: %3;"               // PRIMARY_COLOR
-        "    color: #E6F3FF;"
-        "}"
-        "QPushButton:pressed {"
-        "    background-color: %4;"               // Darker version
-        "    padding: 4px 6px;"
-        "}"
-    ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#001F33").arg(FONT_SIZE);
+                                        "QPushButton {"
+                                        "    font-size: %5pt;"
+                                        "    font-weight: bold;"
+                                        "    color: %1;"                          // TEXT_COLOR
+                                        "    background-color: %2;"               // SECONDARY_COLOR
+                                        "    border-radius: 8px;"                 // Increased radius
+                                        "    padding: 6px 10px;"                  // More padding for larger touch targets
+                                        "    margin: 3px;"
+                                        "    min-height: 36px;"                   // Minimum height for consistent buttons
+                                        "}"
+                                        "QPushButton:hover {"
+                                        "    background-color: %3;"               // PRIMARY_COLOR
+                                        "    color: #FFFFFF;"
+                                        "    border: 1px solid #80CFFF;"          // Subtle border on hover
+                                        "}"
+                                        "QPushButton:pressed {"
+                                        "    background-color: %4;"               // Darker version
+                                        "    padding: 7px 11px;"                  // Pressed effect
+                                        "}"
+                                        "QPushButton:disabled {"
+                                        "    background-color: #334455;"          // Disabled state
+                                        "    color: #8899AA;"
+                                        "}"
+                                        ).arg(TEXT_COLOR, SECONDARY_COLOR, PRIMARY_COLOR, "#002244").arg(FONT_SIZE);
 
-    // Terminal style with marine theme
+    // Terminal style optimized for OBD data display
     textTerminal->setStyleSheet(QString(
-        "QTextEdit {"
-        "    font: %4pt 'Consolas';"
-        "    color: %1;"                     // Light text
-        "    background-color: %2;"          // Darker background
-        "    border: 1px solid %3;"
-        "    border-radius: 6px;"
-        "    padding: 5px;"
-        "}"
-    ).arg(TEXT_COLOR, "#001F33", BORDER_COLOR).arg(FONT_SIZE - 4)); // Slightly smaller for text
+                                    "QTextEdit {"
+                                    "    font: %4pt 'Consolas';"
+                                    "    color: %1;"                     // Light text
+                                    "    background-color: %2;"          // Darker background
+                                    "    border: 1px solid %3;"
+                                    "    border-radius: 8px;"
+                                    "    padding: 8px;"
+                                    "    selection-background-color: #0077CC;" // Highlight color for selected text
+                                    "    selection-color: #FFFFFF;"
+                                    "}"
+                                    ).arg(TEXT_COLOR, "#001A2E", BORDER_COLOR).arg(FONT_SIZE - 4)); // Slightly smaller for text
 
     // Apply styles to all standard buttons
     QList<QPushButton*> standardButtons = {
         pushConnect, pushSend, pushRead,
         pushSetProtocol, pushGetProtocol, pushClear,
         pushScan, pushReadFault, btnReadTransFault, btnClearTransFault,
-        pushClearFault, btnReadAirbagFault, btnClearAirbagFault, pushExit
+        pushClearFault, pushExit
     };
 
     for (auto* button : standardButtons) {
         button->setStyleSheet(buttonBaseStyle);
     }
 
-    // Checkbox style with marine theme
-    checkSearchPids->setStyleSheet(QString(
-        "QCheckBox {"
-        "    font-size: %5pt;"
-        "    font-weight: bold;"
-        "    color: %1;"
-        "    padding: 3px;"
-        "    spacing: 6px;"
-        "}"
-        "QCheckBox::indicator {"
-        "    width: 28px;"
-        "    height: 22px;"
-        "    border: 2px solid %2;"
-        "    border-radius: 6px;"
-        "}"
-        "QCheckBox::indicator:unchecked {"
-        "    background-color: transparent;"
-        "}"
-        "QCheckBox::indicator:checked {"
-        "    background-color: %3;"
-        "}"
-        "QCheckBox::indicator:hover {"
-        "    border-color: %4;"
-        "}"
-    ).arg(TEXT_COLOR, PRIMARY_COLOR, ACCENT_COLOR, PRIMARY_COLOR).arg(FONT_SIZE - 2));
+    // Special styling for critical buttons
+    pushConnect->setStyleSheet(buttonBaseStyle + QString(
+                                   "QPushButton {"
+                                   "    background-color: #005599;"
+                                   "    border: 2px solid #0077CC;"
+                                   "}"
+                                   "QPushButton:checked {"               // For toggle behavior if implemented
+                                   "    background-color: #00AA66;"      // Green when connected
+                                   "    border: 2px solid #00CC77;"
+                                   "}"
+                                   ));
 
-    // Input fields style
+    pushReadFault->setStyleSheet(buttonBaseStyle + QString(
+                                     "QPushButton {"
+                                     "    background-color: #884400;"      // Warning color for fault reading
+                                     "}"
+                                     ));
+
+    pushClearFault->setStyleSheet(buttonBaseStyle + QString(
+                                      "QPushButton {"
+                                      "    background-color: #AA3300;"      // Caution color for fault clearing
+                                      "}"
+                                      ));
+
+    btnReadTransFault->setStyleSheet(buttonBaseStyle + QString(
+                                     "QPushButton {"
+                                     "    background-color: #884400;"      // Warning color for fault reading
+                                     "}"
+                                     ));
+
+    btnClearTransFault->setStyleSheet(buttonBaseStyle + QString(
+                                      "QPushButton {"
+                                      "    background-color: #AA3300;"      // Caution color for fault clearing
+                                      "}"
+                                      ));
+
+    pushScan->setStyleSheet(buttonBaseStyle + QString(
+                                         "QPushButton {"
+                                         "    background-color: #884400;"
+                                         "}"
+                                         ));
+
+    pushRead->setStyleSheet(buttonBaseStyle + QString(
+                                          "QPushButton {"
+                                          "    background-color: #AA3300;"
+                                          "}"
+                                          ));
+
+    pushSend->setStyleSheet(buttonBaseStyle + QString(
+                                "QPushButton {"
+                                "    background-color: #AA3300;"
+                                "}"
+                                ));
+
+    // Enhanced checkbox style for OBD scanner
+    checkSearchPids->setStyleSheet(QString(
+                                       "QCheckBox {"
+                                       "    font-size: %5pt;"
+                                       "    font-weight: bold;"
+                                       "    color: %1;"
+                                       "    padding: 4px;"
+                                       "    spacing: 8px;"
+                                       "}"
+                                       "QCheckBox::indicator {"
+                                       "    width: 30px;"                    // Larger indicator for touch screens
+                                       "    height: 24px;"
+                                       "    border: 2px solid %2;"
+                                       "    border-radius: 6px;"
+                                       "}"
+                                       "QCheckBox::indicator:unchecked {"
+                                       "    background-color: #001A2E;"
+                                       "}"
+                                       "QCheckBox::indicator:checked {"
+                                       "    background-color: %3;"
+                                       "    image: url(:/icons/check.png);"  // Optional: add a checkmark image
+                                       "}"
+                                       "QCheckBox::indicator:hover {"
+                                       "    border-color: %4;"
+                                       "}"
+                                       ).arg(TEXT_COLOR, PRIMARY_COLOR, ACCENT_COLOR, PRIMARY_COLOR).arg(FONT_SIZE));
+
+    // Input fields style optimized for OBD commands
     const QString inputStyle = QString(
-        "QWidget {"
-        "    font-size: %5pt;"
-        "    font-weight: bold;"
-        "    color: %1;"
-        "    background-color: %2;"
-        "    border: 1px solid %3;"
-        "    border-radius: 6px;"
-        "    padding: 8px;"
-        "}"
-        "QWidget:focus {"
-        "    border: 2px solid %4;"
-        "}"
-    ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE - 2);
+                                   "QWidget {"
+                                   "    font-size: %5pt;"
+                                   "    font-weight: bold;"
+                                   "    color: %1;"
+                                   "    background-color: %2;"
+                                   "    border: 1px solid %3;"
+                                   "    border-radius: 8px;"
+                                   "    padding: 10px;"
+                                   "    selection-background-color: #0077CC;"
+                                   "    selection-color: #FFFFFF;"
+                                   "}"
+                                   "QWidget:focus {"
+                                   "    border: 2px solid %4;"
+                                   "    background-color: #002D4D;"      // Slightly lighter when focused
+                                   "}"
+                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE);
 
     sendEdit->setStyleSheet(inputStyle);
+
+    // Protocol combo box style with dropdown arrow indicator
     protocolCombo->setStyleSheet(inputStyle + QString(
-        "QComboBox::drop-down {"
-        "    border: none;"
-        "    width: 30px;"
-        "}"
-        "QComboBox::down-arrow {"
-        "    width: 16px;"
-        "    height: 16px;"
-        "}"
-    ));
+                                                  "QComboBox::drop-down {"
+                                                  "    border: none;"
+                                                  "    width: 36px;"                   // Wider clickable area
+                                                  "}"
+                                                  "QComboBox::down-arrow {"
+                                                  "    width: 18px;"
+                                                  "    height: 18px;"
+                                                  "    image: url(:/icons/dropdown.png);" // Optional: add custom dropdown arrow
+                                                  "}"
+                                                  "QComboBox QAbstractItemView {"       // Dropdown menu styling
+                                                  "    background-color: %1;"
+                                                  "    border: 1px solid %2;"
+                                                  "    border-radius: 6px;"
+                                                  "    selection-background-color: %3;"
+                                                  "    color: %4;"
+                                                  "    padding: 4px;"
+                                                  "}"
+                                                  ).arg(SECONDARY_COLOR, BORDER_COLOR, PRIMARY_COLOR, TEXT_COLOR));
 
-    // Interval slider style
+    // Interval slider label with value display
     labelInterval->setStyleSheet(QString(
-        "QLabel {"
-        "    font-size: %2px;"
-        "    font-weight: bold;"
-        "    color: %1;"
-        "    padding: 3px;"
-        "    background-color: %3;"
-        "    border-radius: 3px;"
-        "    margin: 3px;"
-        "}"
-    ).arg(TEXT_COLOR, QString::number(FONT_SIZE), SECONDARY_COLOR));
+                                     "QLabel {"
+                                     "    font-size: %2px;"
+                                     "    font-weight: bold;"
+                                     "    color: %1;"
+                                     "    padding: 5px 8px;"
+                                     "    background-color: %3;"
+                                     "    border-radius: 5px;"
+                                     "    margin: 4px;"
+                                     "}"
+                                     ).arg(TEXT_COLOR, QString::number(FONT_SIZE), SECONDARY_COLOR));
 
+    // Enhanced slider with better visual feedback for interval control
     intervalSlider->setStyleSheet(QString(
-        "QSlider::groove:horizontal {"
-        "    border: none;"
-        "    height: 16px;"
-        "    background: %1;"
-        "    border-radius: 5px;"
-        "    margin: 0px;"
-        "}"
-        "QSlider::handle:horizontal {"
-        "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-        "        stop:0 %2, stop:1 %3);"
-        "    border: none;"
-        "    width: 30px;"
-        "    margin: -5px 0;"
-        "    border-radius: 10px;"
-        "}"
-        "QSlider::sub-page:horizontal {"
-        "    background: %4;"
-        "    border-radius: 5px;"
-        "}"
-        "QSlider::add-page:horizontal {"
-        "    background: %5;"
-        "    border-radius: 5px;"
-        "}"
-        "QSlider::tick-mark {"
-        "    background: %6;"
-        "    width: 2px;"
-        "    height: 5px;"
-        "    margin-top: 5px;"
-        "}"
-    ).arg(
-        "#001F33",              // Groove background
-        ACCENT_COLOR,           // Handle gradient start
-        PRIMARY_COLOR,          // Handle gradient end
-        PRIMARY_COLOR,          // Sub-page (filled)
-        "#001F33",              // Add-page (empty)
-        BORDER_COLOR            // Tick marks
-    ));
+                                      "QSlider {"
+                                      "    height: 36px;"                   // Taller for better touch control
+                                      "}"
+                                      "QSlider::groove:horizontal {"
+                                      "    border: none;"
+                                      "    height: 18px;"                   // Thicker groove
+                                      "    background: %1;"
+                                      "    border-radius: 9px;"
+                                      "    margin: 0px;"
+                                      "}"
+                                      "QSlider::handle:horizontal {"
+                                      "    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
+                                      "        stop:0 %2, stop:1 %3);"
+                                      "    border: 1px solid #80CFFF;"      // Subtle border
+                                      "    width: 36px;"                    // Wider handle
+                                      "    height: 26px;"                   // Taller handle
+                                      "    margin: -5px 0;"
+                                      "    border-radius: 12px;"
+                                      "}"
+                                      "QSlider::sub-page:horizontal {"      // Filled area
+                                      "    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
+                                      "        stop:0 %4, stop:1 %2);"
+                                      "    border-radius: 9px;"
+                                      "}"
+                                      "QSlider::add-page:horizontal {"      // Empty area
+                                      "    background: %5;"
+                                      "    border-radius: 9px;"
+                                      "}"
+                                      "QSlider::tick-mark {"
+                                      "    background: %6;"
+                                      "    width: 2px;"
+                                      "    height: 8px;"                    // Taller tick marks
+                                      "    margin-top: 5px;"
+                                      "}"
+                                      ).arg(
+                                          "#001A2E",              // Groove background
+                                          ACCENT_COLOR,           // Handle gradient start
+                                          PRIMARY_COLOR,          // Handle gradient end
+                                          "#0066AA",              // Sub-page gradient start (filled)
+                                          "#001A2E",              // Add-page (empty)
+                                          "#80CFFF"               // Tick marks - brighter for visibility
+                                          ));
 }
 
 void MainWindow::setupIntervalSlider()
@@ -1126,9 +1175,6 @@ void MainWindow::scanBluetoothDevices()
     m_bluetoothDevicesCombo->addItem("Select device...");
     m_deviceAddressMap.clear();
 
-    // Display scanning message
-    textTerminal->append("Scanning for Bluetooth devices...");
-
     // Process events to make sure UI updates before starting scan
     QCoreApplication::processEvents();
 
@@ -1162,7 +1208,7 @@ void MainWindow::onBluetoothDeviceFound(const QString &name, const QString &addr
 void MainWindow::onBluetoothDiscoveryCompleted()
 {
     if (m_bluetoothDevicesCombo->count() <= 1) {
-        textTerminal->append("No Bluetooth devices found.");
+        textTerminal->append("No Obd Bluetooth devices found.");
     } else {
         textTerminal->append("Found " + QString::number(m_bluetoothDevicesCombo->count() - 1) + " Bluetooth devices.");
     }
@@ -1201,16 +1247,14 @@ void MainWindow::requestBluetoothPermissions()
     case Qt::PermissionStatus::Undetermined:
         qApp->requestPermission(bluetoothPermission, this,
                                 [this](const QPermission &permission) {
-                                    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {
-                                        textTerminal->append("Bluetooth permission granted. Starting scan...");
+                                    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {                                        
                                         scanBluetoothDevices();
                                     } else {
                                         textTerminal->append("Bluetooth permission denied. Cannot proceed.");
                                     }
                                 });
         break;
-    case Qt::PermissionStatus::Granted:
-        textTerminal->append("Bluetooth permission already granted. Starting scan...");
+    case Qt::PermissionStatus::Granted:        
         scanBluetoothDevices();
         break;
     case Qt::PermissionStatus::Denied:
@@ -1226,16 +1270,12 @@ void MainWindow::requestBluetoothPermissions()
     case Qt::PermissionStatus::Undetermined:
         qApp->requestPermission(locationPermission, this,
                                 [this](const QPermission &permission) {
-                                    if (qApp->checkPermission(permission) == Qt::PermissionStatus::Granted) {
-                                        textTerminal->append("Location permission granted.");
-                                        // Permission granted - but we already started scan in Bluetooth permission handler
-                                    } else {
+                                    if (qApp->checkPermission(permission) != Qt::PermissionStatus::Granted) {
                                         textTerminal->append("Location permission denied. Bluetooth scanning may not work properly.");
                                     }
                                 });
         break;
     case Qt::PermissionStatus::Granted:
-        textTerminal->append("Location permission already granted.");
         break;
     case Qt::PermissionStatus::Denied:
         textTerminal->append("Location permission denied. Bluetooth scanning may not work properly.");

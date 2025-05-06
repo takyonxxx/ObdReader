@@ -101,8 +101,6 @@ private:
     QPushButton *pushClearFault;
     QPushButton *btnReadTransFault;
     QPushButton *btnClearTransFault;
-    QPushButton *btnReadAirbagFault;
-    QPushButton *btnClearAirbagFault;
 
     // Scan and Read buttons
     QPushButton *pushScan;
