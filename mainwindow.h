@@ -5,6 +5,9 @@
 #include <QScreen>
 #include <QRegularExpression>
 #include <QTimer>
+#include <QComboBox>
+#include <QPushButton>
+#include <QFormLayout>
 #include <QDebug>
 #include "connectionmanager.h"
 #include "settingsmanager.h"
@@ -95,6 +98,15 @@ private:
     bool m_autoRefresh{false};       // Auto-refresh enabled
 
     QRect desktopRect;               // Screen dimensions
+
+    QMap<int, QString> m_deviceAddressMap;  // Maps combo box index to device address
+
+    // Bluetooth connection handling
+    void setupBluetoothUI();
+    void scanBluetoothDevices();
+    void onBluetoothDeviceSelected(int index);
+    void onBluetoothDeviceFound(const QString &name, const QString &address);
+    void onBluetoothDiscoveryCompleted();
 };
 
 #endif // MAINWINDOW_H

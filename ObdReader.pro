@@ -1,4 +1,4 @@
-QT       += core gui network
+QT       += core gui network bluetooth
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = ObdReader
 TEMPLATE = app
@@ -11,6 +11,7 @@ CONFIG += c++17
 SOURCES += \
     connectionmanager.cpp \
     elm.cpp \
+    elmbluetoothmanager.cpp \
     elmtcpsocket.cpp \
     global.cpp \
     main.cpp \
@@ -21,6 +22,7 @@ SOURCES += \
 HEADERS += \
     connectionmanager.h \
     elm.h \
+    elmbluetoothmanager.h \
     elmtcpsocket.h \
     global.h \
     mainwindow.h \

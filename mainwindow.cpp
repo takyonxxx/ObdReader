@@ -64,6 +64,7 @@ void MainWindow::setupUi()
 {
     // Set default command
     ui->sendEdit->setText("0101");
+    setupBluetoothUI();
 }
 
 void MainWindow::setupConnections()
@@ -581,20 +582,6 @@ void MainWindow::analysData(const QString &dataReceived)
     }
 }
 
-void MainWindow::onConnectClicked()
-{
-    if(ui->pushConnect->text() == "Connect") {
-        QCoreApplication::processEvents();
-        ui->textTerminal->clear();
-        if(m_connectionManager)
-            m_connectionManager->connectElm();
-    }
-    else {
-        if(m_connectionManager)
-            m_connectionManager->disConnectElm();
-    }
-}
-
 void MainWindow::onSendClicked()
 {
     if(!m_connected)
@@ -797,52 +784,170 @@ void MainWindow::onExitClicked()
     QApplication::quit();
 }
 
-// #ifdef Q_OS_ANDROID
-// void MainWindow::requestAndroidPermissions()
-// {
-//     // Permission that requires runtime request (location)
-//     const QStringList dangerousPermissions {
-//         "android.permission.ACCESS_FINE_LOCATION",
-//         "android.permission.ACCESS_COARSE_LOCATION"
-//     };
+void MainWindow::setupBluetoothUI()
+{
+    ui->m_connectionTypeCombo->addItem("WiFi");
+    ui->m_connectionTypeCombo->addItem("Bluetooth");
 
-//     bool allPermissionsGranted = true;
+    ui->m_bluetoothDevicesCombo->addItem("Select device...");
+    //ui->m_bluetoothDevicesCombo->setVisible(false);
 
-//     // Check each permission
-//     for (const QString &permission : dangerousPermissions) {
-//         QJniObject jPermission = QJniObject::fromString(permission);
-//         QJniObject activity = QJniObject::callStaticObjectMethod(
-//             "org/qtproject/qt/android/QtNative",
-//             "activity",
-//             "()Landroid/app/Activity;");
+    // Style the new components
+    const int FONT_SIZE = 20;
+    const QString TEXT_COLOR = "#E6F3FF";
+    const QString SECONDARY_COLOR = "#002D4D";
+    const QString BORDER_COLOR = "#004C80";
+    const QString ACCENT_COLOR = "#0073BF";
 
-//         jint result = activity.callMethod<jint>(
-//             "checkSelfPermission",
-//             "(Ljava/lang/String;)I",
-//             jPermission.object<jstring>());
+    const QString inputStyle = QString(
+                                   "QWidget {"
+                                   "    font-size: %5pt;"
+                                   "    font-weight: bold;"
+                                   "    color: %1;"
+                                   "    background-color: %2;"
+                                   "    border: 1px solid %3;"
+                                   "    border-radius: 6px;"
+                                   "    padding: 8px;"
+                                   "}"
+                                   "QWidget:focus {"
+                                   "    border: 2px solid %4;"
+                                   "}"
+                                   ).arg(TEXT_COLOR, SECONDARY_COLOR, BORDER_COLOR, ACCENT_COLOR).arg(FONT_SIZE - 2);
 
-//         if (result != 0) { // PERMISSION_GRANTED is 0
-//             allPermissionsGranted = false;
+    ui->m_connectionTypeCombo->setStyleSheet(inputStyle + QString(
+                                             "QComboBox::drop-down {"
+                                             "    border: none;"
+                                             "    width: 30px;"
+                                             "}"
+                                             "QComboBox::down-arrow {"
+                                             "    width: 16px;"
+                                             "    height: 16px;"
+                                             "}"
+                                             ));
 
-//             // Request permission using JNI
-//             jobjectArray permissionArray;
-//             QJniEnvironment env;
-//             jclass stringClass = env->FindClass("java/lang/String");
-//             permissionArray = env->NewObjectArray(1, stringClass, nullptr);
-//             env->SetObjectArrayElement(permissionArray, 0, jPermission.object<jstring>());
+    ui->m_bluetoothDevicesCombo->setStyleSheet(inputStyle + QString(
+                                               "QComboBox::drop-down {"
+                                               "    border: none;"
+                                               "    width: 30px;"
+                                               "}"
+                                               "QComboBox::down-arrow {"
+                                               "    width: 16px;"
+                                               "    height: 16px;"
+                                               "}"
+                                               ));
 
-//             activity.callMethod<void>(
-//                 "requestPermissions",
-//                 "([Ljava/lang/String;I)V",
-//                 permissionArray,
-//                 0);
-//         }
-//     }
+    ui->connectionTypeLabel->setStyleSheet(QString(
+                                           "QLabel {"
+                                           "    font-size: %2pt;"
+                                           "    font-weight: bold;"
+                                           "    color: %1;"
+                                           "}"
+                                           ).arg(TEXT_COLOR).arg(FONT_SIZE));
 
-//     if (!allPermissionsGranted) {
-//         QMessageBox::information(this, "Permissions Required",
-//                                  "Location permissions are required for WiFi scanning.\n"
-//                                  "Please grant the requested permissions.");
-//     }
-// }
-// #endif
+    ui->btDeviceLabel->setStyleSheet(QString(
+                                     "QLabel {"
+                                     "    font-size: %2pt;"
+                                     "    font-weight: bold;"
+                                     "    color: %1;"
+                                     "}"
+                                     ).arg(TEXT_COLOR).arg(FONT_SIZE));
+    // ui->btDeviceLabel->setVisible(false);
+
+    // Connect signals
+    connect(ui->m_connectionTypeCombo, &QComboBox::currentIndexChanged,
+            [this](int index) {
+                if (index == 0) {
+                    if (m_connectionManager) {
+                        m_connectionManager->setConnectionType(Wifi);
+                    }
+                }
+                else if (index == 1) { // Bluetooth
+                    if (m_connectionManager) {
+                        m_connectionManager->setConnectionType(BlueTooth);
+                        scanBluetoothDevices();
+                    }
+                }
+            });
+
+    connect(ui->m_bluetoothDevicesCombo, &QComboBox::currentIndexChanged,
+            this, &MainWindow::onBluetoothDeviceSelected);
+
+    // Connect to ConnectionManager signals for Bluetooth discovery
+    if (m_connectionManager) {
+        connect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
+                this, &MainWindow::onBluetoothDeviceFound);
+        connect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
+                this, &MainWindow::onBluetoothDiscoveryCompleted);
+    }
+}
+
+void MainWindow::scanBluetoothDevices()
+{
+    // Clear previous devices
+    ui->m_bluetoothDevicesCombo->clear();
+    ui->m_bluetoothDevicesCombo->addItem("Select device...");
+    m_deviceAddressMap.clear();
+
+    // Start scanning
+    if (m_connectionManager) {
+        m_connectionManager->startBluetoothDiscovery();
+    }
+    ui->textTerminal->append("Scanning for Bluetooth devices...");
+}
+
+void MainWindow::onBluetoothDeviceFound(const QString &name, const QString &address)
+{
+    // Add device to combo box and map
+    int index = ui->m_bluetoothDevicesCombo->count();
+    ui->m_bluetoothDevicesCombo->addItem(name);
+    m_deviceAddressMap[index] = address;
+
+    ui->textTerminal->append("Found device: " + name + " (" + address + ")");
+}
+
+void MainWindow::onBluetoothDiscoveryCompleted()
+{
+    if (ui->m_bluetoothDevicesCombo->count() <= 1) {
+        ui->textTerminal->append("No Bluetooth devices found.");
+    } else {
+        ui->textTerminal->append("Found " + QString::number(ui->m_bluetoothDevicesCombo->count() - 1) + " Bluetooth devices.");
+    }
+}
+
+void MainWindow::onBluetoothDeviceSelected(int index)
+{
+    if (index <= 0) {
+        return; // "Select device..." option
+    }
+    if (m_deviceAddressMap.contains(index)) {
+        QString selectedAddress = m_deviceAddressMap[index];
+        ui->textTerminal->append("Selected device with address: " + selectedAddress);
+    }
+}
+
+void MainWindow::onConnectClicked()
+{
+    if(ui->pushConnect->text() == "Connect") {
+        ui->textTerminal->clear();
+
+        if(m_connectionManager) {
+            // If Bluetooth is selected and a device is chosen, pass the address
+            if (ui->m_connectionTypeCombo->currentIndex() == 1) { // Bluetooth
+                int deviceIndex = ui->m_bluetoothDevicesCombo->currentIndex();
+                if (deviceIndex > 0 && m_deviceAddressMap.contains(deviceIndex)) {
+                    QString deviceAddress = m_deviceAddressMap[deviceIndex];
+                    m_connectionManager->connectElm(deviceAddress);
+                } else {
+                    m_connectionManager->connectElm(); // Will start discovery
+                }
+            } else {
+                m_connectionManager->connectElm(); // WiFi connection
+            }
+        }
+    }
+    else {
+        if(m_connectionManager) {
+            m_connectionManager->disConnectElm();
+        }
+    }
+}
