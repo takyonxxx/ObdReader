@@ -12,8 +12,12 @@ public:
     std::vector<QString> decodeDTC(const std::vector<QString> &hex_vals);
     std::pair<int,bool> decodeNumberOfDtc(const std::vector<QString> &hex_vals);
     std::vector<QString> prepareResponseToDecode(const QString &response_str);
+    QString getLastHeader() const;
+
+    void setLastHeader(const QString &newLastHeader);
 
 private:
+    QString m_lastHeader;
     bool available_pids[256];
     bool available_pids_checked = false;
     void update_available_pids();

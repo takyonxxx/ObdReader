@@ -210,6 +210,16 @@ std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
     return result;
 }
 
+QString ELM::getLastHeader() const
+{
+    return m_lastHeader;
+}
+
+void ELM::setLastHeader(const QString &newLastHeader)
+{
+    m_lastHeader = newLastHeader;
+}
+
 std::vector<QString> ELM::decodeDTC(const std::vector<QString> &hex_vals)
 {
     std::vector<QString> dtc_codes;

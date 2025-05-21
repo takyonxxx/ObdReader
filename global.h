@@ -38,6 +38,8 @@ static const QString DEFAULT = "ATD",
     SPACES_OFF = "ATS0",
     SPACES_ON = "ATS1",
     TIMEOUT_100 = "ATST64",
+    ATFI= "ATFI",
+    BAUD_10400 = "ATIB10",     // Set ISO baud rate to 10400 (10.4K)
     ADAPTIF_TIMING_OFF = "ATAT0",
     ADAPTIF_TIMING_AUTO1 = "ATAT1",
     ADAPTIF_TIMING_AUTO2 = "ATAT2",
@@ -75,27 +77,17 @@ static const QString DEFAULT = "ATD",
     PEDAL_POSITION = "015A",    // Relative accelerator pedal position A*100/255 [%]
     ENGINE_OIL_TEMP = "015C",   // A-40
     FUEL_RATE = "015E",         // (A*256+B)/20 [L/h]
-    ACTUAL_TORQUE = "0162",     // Actual engine - percent torque A-125 [%]
-
-    // Diagnostic Trouble Codes - Mode 03 & 04
+    ACTUAL_TORQUE = "0162",
     READ_TROUBLE = "03",        // Request trouble codes
     CLEAR_TROUBLE = "04",       // Clear trouble codes / MIL / Check engine light
-
-    // Vehicle Information - Mode 09
     READ_VIN = "0902",          // Mode 09, PID 02 for VIN
-
-    // ECU Selection Commands
-    ONLY_ENGINE_ECU = "ATSH7E0",
-
-    // Keep original to maintain compatibility
     READ_TRANS_TROUBLE = "0902";  // This is actually for VIN, not transmission
 
 // Additional useful commands (add these to your code)
-static const QString TRANS_ECU_HEADER = "ATSH7E1";  // Set header for transmission ECU
-static const QString ABS_ECU_HEADER = "ATSH7E4";    // Set header for ABS ECU
-static const QString AIRBAG_ECU_HEADER = "ATSH7D3"; // Set header for airbag ECU
-static const QString PCM_ECU_HEADER = "ATSH7E0";    // Same as ONLY_ENGINE_ECU
-//0104, 0105, 010B, 010C, 010D, 010F, 0110, 0111, 011C (ENGINE_LOAD, COOLANT_TEMP, MAN_ABSOLUTE_PRESSURE, ENGINE_RPM, VEHICLE_SPEED, INTAKE_AIR_TEMP, MAF_AIR_FLOW, THROTTLE_POSITION, OBD_STANDARDS)
+static const QString TRANS_ECU_HEADER = "ATSH8217F1";  // Set header for transmission ECU
+static const QString ABS_ECU_HEADER = "ATSH8118F1";    // Set header for ABS ECU
+static const QString AIRBAG_ECU_HEADER = "ATSH8122F1"; // Set header for airbag ECU
+static const QString PCM_ECU_HEADER = "ATSH8115F1";    // Same as ONLY_ENGINE_ECU
 
 /*
 ATSP

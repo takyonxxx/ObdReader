@@ -54,6 +54,8 @@ public slots:
     void onClearTransFaultClicked();
     void onReadAirbagFaultClicked();
     void onClearAirbagFaultClicked();
+    void onReadAbsFaultClicked();
+    void onClearAbsFaultClicked();
     void onBluetoothDeviceFound(const QString &name, const QString &address);
     void onBluetoothDiscoveryCompleted();
     void onBluetoothDeviceSelected(int index);

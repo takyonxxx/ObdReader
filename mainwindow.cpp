@@ -742,6 +742,9 @@ QString MainWindow::send(const QString &command)
 {
     if(m_connectionManager && m_connected) {
         auto cmd = cleanData(command);
+        if (command.startsWith("ATSH", Qt::CaseInsensitive)) {
+            elm->setLastHeader(command);
+        }
         textTerminal->append("-> " + cmd);
 
         m_connectionManager->send(cmd);
@@ -800,9 +803,13 @@ QString MainWindow::getData(const QString &command)
 void MainWindow::saveSettings()
 {
 #ifdef Q_OS_ANDROID
-    QString ip = "192.168.0.10";
+        // Android configuration
+        QString ip = "192.168.0.10";
+#elif defined(Q_OS_WINDOWS)
+    // Windows configuration (elm -n 35000 -s car)
+    QString ip = "192.168.1.254";
 #else
-    // elm -n 35000 -s car
+    // Default configuration for other platforms
     QString ip = "192.168.0.10";
 #endif
 
@@ -823,6 +830,10 @@ void MainWindow::analysData(const QString &dataReceived)
     uint8_t A = 0;
     uint8_t B = 0;
     uint8_t PID = 0;
+
+    const QString TRANS_MODULE_ID = "7E9";   // Transmission module CAN ID
+    const QString AIRBAG_MODULE_ID = "7D3";  // Airbag module CAN ID
+    const QString ABS_MODULE_ID = "7E8";     // ABS module CAN ID
 
     std::vector<QString> vec;
     auto resp = elm->prepareResponseToDecode(dataReceived);
@@ -895,54 +906,172 @@ void MainWindow::analysData(const QString &dataReceived)
         resp[2].compare("43", Qt::CaseInsensitive) == 0) {
 
         // This is a CAN format response with ECU ID
-        textTerminal->append("CAN format DTC response detected from ECU: " + resp[0]);
+        QString ecuId = resp[0];
+        bool isTransmission = (ecuId.compare(TRANS_MODULE_ID, Qt::CaseInsensitive) == 0);
+        bool isAirbag = (ecuId.compare(AIRBAG_MODULE_ID, Qt::CaseInsensitive) == 0);
+        bool isAbs = (ecuId.compare(ABS_MODULE_ID, Qt::CaseInsensitive) == 0);
+
+        if (isTransmission) {
+            textTerminal->append("⚙️ TRANSMISSION DTC response detected");
+        } else if (isAirbag) {
+            textTerminal->append("🛡️ AIRBAG/SRS DTC response detected");
+        } else if (isAbs) {
+            textTerminal->append("🛑 ABS DTC response detected");
+        } else {
+            textTerminal->append("DTC response detected from ECU: " + ecuId);
+        }
 
         vec.clear();
         // Skip ECU ID (7Ex), byte count, and response code (43)
         vec.insert(vec.begin(), resp.begin() + 3, resp.end());
 
-        // Debug output
-        QString debugStr = "Parsing bytes: ";
-        for(const auto& val : vec) {
-            debugStr += val + " ";
-        }
-        textTerminal->append(debugStr);
-
         // Process DTCs
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
         if(!dtcCodes.empty()) {
-            QString dtc_list = "DTCs from ECU " + resp[0] + ": ";
-            for(const auto &code : dtcCodes) {
-                dtc_list.append(code + " ");
+            QString dtc_list;
+
+            if (isTransmission) {
+                // [Keep existing transmission code]
             }
+            else if (isAirbag) {
+                // [Keep existing airbag code]
+            }
+            else if (isAbs) {
+                dtc_list = "🛑 ABS DTCs: ";
+
+                // Display ABS-specific descriptions
+                for(const auto &code : dtcCodes) {
+                    dtc_list.append(code + " ");
+
+                    // Add ABS-specific descriptions
+                    if (code == "C0035") dtc_list.append("(Left Front Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0040") dtc_list.append("(Right Front Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0045") dtc_list.append("(Left Rear Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0050") dtc_list.append("(Right Rear Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0060") dtc_list.append("(ABS Pump Motor Circuit) ");
+                    else if (code == "C0110") dtc_list.append("(Pump Motor Circuit Open/Shorted) ");
+                    else if (code == "C0121") dtc_list.append("(Valve Relay Circuit) ");
+                    else if (code == "C0196") dtc_list.append("(ABS Control Module Internal) ");
+                    else if (code == "C0214") dtc_list.append("(ABS Warning Lamp Circuit) ");
+                    else if (code == "C0245") dtc_list.append("(Wheel Speed Sensor Frequency Error) ");
+                    else if (code == "C0266") dtc_list.append("(ABS Performance/Function Mismatch) ");
+                }
+            }
+            else {
+                dtc_list = "DTCs from ECU " + ecuId + ": ";
+                for(const auto &code : dtcCodes) {
+                    dtc_list.append(code + " ");
+                }
+            }
+
             textTerminal->append(dtc_list);
+
+            // Add repair recommendations for specific modules
+            if (isAbs && !dtcCodes.empty()) {
+                textTerminal->append("🛑 ABS RECOMMENDATIONS: ");
+                textTerminal->append("1. Check wheel speed sensor wiring and connections");
+                textTerminal->append("2. Inspect ABS pump and relay");
+                textTerminal->append("3. Check for damaged tone rings on wheel hubs");
+                textTerminal->append("4. Verify proper battery voltage");
+                textTerminal->append("5. Common issue: Corrosion on WSS connectors");
+            }
+            // [Keep existing transmission and airbag recommendations]
         }
         else {
-            textTerminal->append("No DTCs reported from ECU " + resp[0]);
+            if (isTransmission) {
+                textTerminal->append("⚙️ No transmission DTCs reported");
+            } else if (isAirbag) {
+                textTerminal->append("🛡️ No airbag DTCs reported");
+            } else if (isAbs) {
+                textTerminal->append("🛑 No ABS DTCs reported");
+            } else {
+                textTerminal->append("No DTCs reported from ECU " + ecuId);
+            }
         }
     }
     // Handle standard Mode 03 (DTC codes) response without CAN headers
     else if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive)) {
+        // For non-CAN responses, check if we have a specific module selected
+        bool isTransmission = false;
+        bool isAirbag = false;
+        bool isAbs = false;
+
+        // Check the last sent header to determine which module we're talking to
+        QString lastHeader = elm->getLastHeader();
+
+        if (lastHeader.contains("ATSH8217F1", Qt::CaseInsensitive)) {
+            isTransmission = true;
+            textTerminal->append("⚙️ TRANSMISSION DTC response detected (ISO protocol)");
+        } else if (lastHeader.contains("ATSH8122F1", Qt::CaseInsensitive)) {
+            isAirbag = true;
+            textTerminal->append("🛡️ AIRBAG/SRS DTC response detected (ISO protocol)");
+        } else if (lastHeader.contains("ATSH8118F1", Qt::CaseInsensitive)) {
+            isAbs = true;
+            textTerminal->append("🛑 ABS DTC response detected (ISO protocol)");
+        } else {
+            textTerminal->append("Standard DTC response detected");
+        }
+
         vec.clear();  // Clear vector before inserting new data
         vec.insert(vec.begin(), resp.begin() + 1, resp.end());
 
-        // Debug output
-        QString debugStr = "Parsing bytes: ";
-        for(const auto& val : vec) {
-            debugStr += val + " ";
-        }
-        textTerminal->append(debugStr);
-
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
         if(!dtcCodes.empty()) {
-            QString dtc_list = "DTCs: ";
-            for(const auto &code : dtcCodes) {
-                dtc_list.append(code + " ");
+            QString dtc_list;
+
+            if (isTransmission) {
+                // [Keep existing transmission code]
             }
-            textTerminal->append(dtc_list);
+            else if (isAirbag) {
+                // [Keep existing airbag code]
+            }
+            else if (isAbs) {
+                dtc_list = "🛑 ABS DTCs: ";
+
+                // Display ABS-specific descriptions
+                for(const auto &code : dtcCodes) {
+                    dtc_list.append(code + " ");
+
+                    // Add ABS-specific descriptions (same as above)
+                    if (code == "C0035") dtc_list.append("(Left Front Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0040") dtc_list.append("(Right Front Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0045") dtc_list.append("(Left Rear Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0050") dtc_list.append("(Right Rear Wheel Speed Sensor Circuit) ");
+                    else if (code == "C0060") dtc_list.append("(ABS Pump Motor Circuit) ");
+                    else if (code == "C0110") dtc_list.append("(Pump Motor Circuit Open/Shorted) ");
+                    else if (code == "C0121") dtc_list.append("(Valve Relay Circuit) ");
+                    else if (code == "C0196") dtc_list.append("(ABS Control Module Internal) ");
+                    else if (code == "C0214") dtc_list.append("(ABS Warning Lamp Circuit) ");
+                    else if (code == "C0245") dtc_list.append("(Wheel Speed Sensor Frequency Error) ");
+                    else if (code == "C0266") dtc_list.append("(ABS Performance/Function Mismatch) ");
+                }
+
+                textTerminal->append(dtc_list);
+                textTerminal->append("🛑 ABS RECOMMENDATIONS: ");
+                textTerminal->append("1. Check wheel speed sensor wiring and connections");
+                textTerminal->append("2. Inspect ABS pump and relay");
+                textTerminal->append("3. Check for damaged tone rings on wheel hubs");
+                textTerminal->append("4. Verify proper battery voltage");
+                textTerminal->append("5. Common issue: Corrosion on WSS connectors");
+            }
+            else {
+                dtc_list = "DTCs: ";
+                for(const auto &code : dtcCodes) {
+                    dtc_list.append(code + " ");
+                }
+                textTerminal->append(dtc_list);
+            }
         }
         else {
-            textTerminal->append("Number of DTCs: 0");
+            if (isTransmission) {
+                textTerminal->append("⚙️ No transmission DTCs reported");
+            } else if (isAirbag) {
+                textTerminal->append("🛡️ No airbag DTCs reported");
+            } else if (isAbs) {
+                textTerminal->append("🛑 No ABS DTCs reported");
+            } else {
+                textTerminal->append("Number of DTCs: 0");
+            }
         }
     }
 }
@@ -1044,30 +1173,6 @@ void MainWindow::onClearClicked()
     send(RESET);
 }
 
-void MainWindow::onReadFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("-> Reading PCM trouble codes...");
-
-    // Request PCM DTCs (using standard Mode 03 request)
-    send(READ_TROUBLE);
-    QThread::msleep(250);  // Longer delay for complete response
-}
-
-void MainWindow::onClearFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("-> Clearing PCM trouble codes...");
-
-    // Clear DTCs (using standard Mode 04 request)
-    send(CLEAR_TROUBLE);
-    QThread::msleep(250);
-
-    textTerminal->append("PCM codes cleared. Please cycle ignition.");
-}
-
 void MainWindow::onReadTransFaultClicked()
 {
     if(!m_connected)
@@ -1075,13 +1180,15 @@ void MainWindow::onReadTransFaultClicked()
 
     textTerminal->append("-> Reading transmission trouble codes...");
 
-    // First try to select the transmission control module
-    send(TRANS_ECU_HEADER);  // Set header for transmission ECU
+    send(TRANS_ECU_HEADER);     // Set header for transmission ECU
     QThread::msleep(100);
 
     // Read DTCs from transmission
     send(READ_TROUBLE);
-    QThread::msleep(250);  // Longer delay for complete response
+    QThread::msleep(500);       // Longer delay for complete response
+
+    // Note: You'll need to parse the response in your message handler
+    textTerminal->append("Please check above for transmission codes");
 }
 
 void MainWindow::onClearTransFaultClicked()
@@ -1091,15 +1198,43 @@ void MainWindow::onClearTransFaultClicked()
 
     textTerminal->append("-> Clearing transmission trouble codes...");
 
-    // First try to select the transmission control module
-    send(TRANS_ECU_HEADER);  // Set header for transmission ECU
+    send(TRANS_ECU_HEADER);     // Set header for transmission ECU
     QThread::msleep(100);
 
     // Clear DTCs
     send(CLEAR_TROUBLE);
-    QThread::msleep(250);  // Wait for ECU to process
+    QThread::msleep(500);       // Wait for ECU to process
 
     textTerminal->append("Transmission codes cleared. Please cycle ignition.");
+}
+
+void MainWindow::onReadFaultClicked()
+{
+    if(!m_connected)
+        return;
+    textTerminal->append("-> Reading PCM trouble codes...");
+
+    send(PCM_ECU_HEADER);       // Set header for PCM - "ATSH8115F1"
+    QThread::msleep(100);
+
+    // Request PCM DTCs (using standard Mode 03 request)
+    send(READ_TROUBLE);
+    QThread::msleep(500);       // Longer delay for complete response
+}
+
+void MainWindow::onClearFaultClicked()
+{
+    if(!m_connected)
+        return;
+    textTerminal->append("-> Clearing PCM trouble codes...");
+    send(PCM_ECU_HEADER);       // Set header for PCM - "ATSH8115F1"
+    QThread::msleep(100);
+
+    // Clear DTCs (using standard Mode 04 request)
+    send(CLEAR_TROUBLE);
+    QThread::msleep(250);
+
+    textTerminal->append("PCM codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onReadAirbagFaultClicked()
@@ -1107,14 +1242,12 @@ void MainWindow::onReadAirbagFaultClicked()
     if(!m_connected)
         return;
     textTerminal->append("-> Reading Airbag/SRS trouble codes...");
-
-    // First select the Airbag control module
-    send(AIRBAG_ECU_HEADER);  // Set header for Airbag ECU (try 7D0 if this doesn't work)
+    send(AIRBAG_ECU_HEADER);    // Set header for Airbag ECU - "ATSH8122F1"
     QThread::msleep(100);
 
-    // Request Airbag DTCs (using standard Mode 03 request)
+    // Read DTCs (using standard Mode 03 request)
     send(READ_TROUBLE);
-    QThread::msleep(250);  // Longer delay for complete response
+    QThread::msleep(500);       // Longer delay for complete response
 }
 
 void MainWindow::onClearAirbagFaultClicked()
@@ -1123,8 +1256,7 @@ void MainWindow::onClearAirbagFaultClicked()
         return;
     textTerminal->append("-> Clearing Airbag/SRS trouble codes...");
 
-    // First select the Airbag control module
-    send(AIRBAG_ECU_HEADER);  // Set header for Airbag ECU
+    send(AIRBAG_ECU_HEADER);    // Set header for Airbag ECU - "ATSH8122F1"
     QThread::msleep(100);
 
     // Clear DTCs (using standard Mode 04 request)
@@ -1132,6 +1264,39 @@ void MainWindow::onClearAirbagFaultClicked()
     QThread::msleep(250);
 
     textTerminal->append("Airbag codes cleared. Please cycle ignition.");
+}
+
+void MainWindow::onReadAbsFaultClicked()
+{
+    if(!m_connected)
+        return;
+    textTerminal->append("-> Reading ABS trouble codes...");
+
+    send(ABS_ECU_HEADER);       // Set header for ABS ECU - "ATSH8118F1"
+    QThread::msleep(100);
+
+    // Read DTCs from ABS module
+    send(READ_TROUBLE);
+    QThread::msleep(500);       // Longer delay for complete response
+
+    // Note: You'll need to parse the response in your message handler
+    textTerminal->append("Please check above for ABS codes");
+}
+
+void MainWindow::onClearAbsFaultClicked()
+{
+    if(!m_connected)
+        return;
+    textTerminal->append("-> Clearing ABS trouble codes...");
+
+    send(ABS_ECU_HEADER);       // Set header for ABS ECU - "ATSH8118F1"
+    QThread::msleep(100);
+
+    // Clear DTCs
+    send(CLEAR_TROUBLE);
+    QThread::msleep(500);       // Wait for ECU to process
+
+    textTerminal->append("ABS codes cleared. Please cycle ignition.");
 }
 
 void MainWindow::onScanClicked()
