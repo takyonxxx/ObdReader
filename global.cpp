@@ -10,10 +10,8 @@ QStringList initializeCommands = {
     LINEFEED_OFF,          // ATL0 - Turn off linefeed
     ECHO_OFF,              // ATE0 - Turn off echo
     HEADERS_OFF,           // ATH0 - Turn off headers
+    ADAPTIF_TIMING_AUTO2,  // ATAT2 - Adaptive timing
     PROTOCOL_ISO_9141_2,   // ATSP3 - Set protocol to ISO 9141-2
-    ADAPTIF_TIMING_AUTO1,  // ATAT1 - Adaptive timing
-    BAUD_10400,            // ATIB10 - Set ISO baud rate to 10400
-    ATFI,                  // ATFI - Fast initialization
     MONITOR_STATUS         // AT MA - Monitor all
 };
 QStringList runtimeCommands = {};
