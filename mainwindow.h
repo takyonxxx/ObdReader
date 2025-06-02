@@ -1,3 +1,4 @@
+// ============= MAINWINDOW.H =============
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 #include <QMainWindow>
@@ -19,10 +20,14 @@
 #include "connectionmanager.h"
 #include "settingsmanager.h"
 #include "elm.h"
+#include "global.h"  // Include for ELM327Command
 
 #if defined(Q_OS_ANDROID)
 #include <QJniObject>
 #include <QJniEnvironment>
+#include <QBluetoothPermission>
+#include <QLocationPermission>
+#include <QCoreApplication>
 #endif
 
 class ObdScan;
@@ -81,6 +86,17 @@ private:
     QString cleanData(const QString& input);
     bool isError(std::string msg);
     void scanBluetoothDevices();
+
+    // ELM327 initialization
+    bool initializeELM327();
+    void processInitializationResponse(const QString& data);
+
+    // Real-time data processing methods
+    void processRealTimeData(const QString& command, const QString& response);
+    double extractRPM(const QStringList& data);
+    double extractTemperature(const QStringList& data, int offset);
+    double extractTPS(const QStringList& data);
+    void displayRealTimeData(const QString& parameter, double value, const QString& unit);
 
     // UI components
     QWidget *centralWidget;
@@ -148,6 +164,12 @@ private:
     bool m_autoRefresh{false};       // Auto-refresh enabled
     QRect desktopRect;               // Screen dimensions
     QMap<int, QString> m_deviceAddressMap; // Maps combo box index to device address
+
+    // Real-time data storage
+    double m_currentRPM{0.0};
+    double m_currentCoolantTemp{0.0};
+    double m_currentIAT{0.0};
+    double m_currentTPS{0.0};
 
 #ifdef Q_OS_ANDROID
     void requestBluetoothPermissions();

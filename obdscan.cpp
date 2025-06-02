@@ -2,10 +2,12 @@
 #include "ui_obdscan.h"
 #include "connectionmanager.h"
 #include "global.h"
+#include <algorithm>
+#include <cmath>
 
 ObdScan::ObdScan(QWidget *parent, const QStringList& commands, int& interval) :
     QMainWindow(parent),
-    ui(new Ui::ObdScan),    
+    ui(new Ui::ObdScan),
     m_interval(interval),
     m_elm(ELM::getInstance())
 {
@@ -27,14 +29,15 @@ ObdScan::ObdScan(QWidget *parent, const QStringList& commands, int& interval) :
     setupInitialValues();
     setupConnections();
 
+    // Define standard OBD-II commands as hex strings
     QStringList commandsToKeep = {
-        ENGINE_LOAD,
-        COOLANT_TEMP,
-        MAN_ABSOLUTE_PRESSURE,
-        ENGINE_RPM,
-        VEHICLE_SPEED,
-        INTAKE_AIR_TEMP,
-        MAF_AIR_FLOW
+        "0104",  // Engine Load (PID 04)
+        "0105",  // Coolant Temperature (PID 05)
+        "010B",  // Manifold Absolute Pressure (PID 0B)
+        "010C",  // Engine RPM (PID 0C)
+        "010D",  // Vehicle Speed (PID 0D)
+        "010F",  // Intake Air Temperature (PID 0F)
+        "0110"   // Mass Air Flow (PID 10)
     };
 
     // Filter the runtime commands to keep only those in our list
@@ -101,8 +104,8 @@ void ObdScan::setupInitialValues()
     ui->labelMap->setText("0 PSI");
     ui->labelMaf->setText("0 g/s");
     ui->labelTemp->setText("0 °C");
-    ui->labelCoolant->setText("0 °C");
-    ui->labelAvgConsumption->setText("0.0 L/h  -  0.0 L/100km");
+        ui->labelCoolant->setText("0 °C");
+        ui->labelAvgConsumption->setText("0.0 L/h  -  0.0 L/100km");
 }
 
 void ObdScan::applyStyles()
@@ -262,7 +265,6 @@ QString ObdScan::getData(const QString &command)
     // Normalize the format
     dataReceived = dataReceived.trimmed().simplified();
     dataReceived.remove(QRegularExpression("[\\n\\t\\r]"));
-    dataReceived.remove(QRegularExpression("[^a-zA-Z0-9]+"));
 
     return dataReceived;
 }
@@ -279,8 +281,12 @@ void ObdScan::onTimeout()
         m_commandOrder = 0;
     }
 
-    // Get data for current command
+    // Set PCM header before sending OBD command
     if(m_commandOrder < runtimeCommands.size()) {
+        send(PCM_ECU_HEADER);  // Set header for PCM
+        QThread::msleep(50);   // Short delay
+
+        // Get data for current command
         auto dataReceived = getData(runtimeCommands[m_commandOrder]);
 
         if(dataReceived != "error") {
@@ -299,12 +305,16 @@ void ObdScan::dataReceived(QString dataReceived)
     if(m_commandOrder >= runtimeCommands.size()) {
         m_commandOrder = 0;
         if(!runtimeCommands.isEmpty()) {
+            send(PCM_ECU_HEADER);  // Set header
+            QThread::msleep(50);
             send(runtimeCommands[m_commandOrder]);
         }
     }
 
     // Send next command
     if(m_commandOrder < runtimeCommands.size()) {
+        send(PCM_ECU_HEADER);  // Set header
+        QThread::msleep(50);
         send(runtimeCommands[m_commandOrder]);
         m_commandOrder++;
     }
@@ -314,7 +324,6 @@ void ObdScan::dataReceived(QString dataReceived)
         // Clean and normalize data
         dataReceived = dataReceived.trimmed().simplified();
         dataReceived.remove(QRegularExpression("[\\n\\t\\r]"));
-        dataReceived.remove(QRegularExpression("[^a-zA-Z0-9]+"));
 
         analysData(dataReceived);
     }
@@ -338,8 +347,8 @@ void ObdScan::onClearClicked()
     ui->labelMap->setText("0 PSI");
     ui->labelMaf->setText("0 g/s");
     ui->labelTemp->setText("0 °C");
-    ui->labelCoolant->setText("0 °C");
-    ui->labelAvgConsumption->setText("0.0 L/h  -  0.0 L/100km");
+        ui->labelCoolant->setText("0 °C");
+        ui->labelAvgConsumption->setText("0.0 L/h  -  0.0 L/100km");
 }
 
 void ObdScan::analysData(const QString &dataReceived)
@@ -382,21 +391,21 @@ void ObdScan::analysData(const QString &dataReceived)
                 B = static_cast<uint8_t>(std::stoi(resp[3].toStdString(), nullptr, 16) & 0xFF);
             }
 
-            // Process based on PID
+            // Process based on PID using constants
             switch (PID) {
-            case 4: // Engine Load
+            case ENGINE_LOAD: // PID 04 - Engine Load
                 // A*100/255
                 value = A * 100.0 / 255.0;
                 ui->labelLoad->setText(QString::number(value, 'f', 0) + " %");
                 break;
 
-            case 5: // Coolant Temperature
+            case COOLANT_TEMP: // PID 05 - Coolant Temperature
                 // A-40
                 value = A - 40;
                 ui->labelCoolant->setText(QString::number(value, 'f', 0) + " °C");
-                break;
+                    break;
 
-            case 11: // Manifold Absolute Pressure
+            case MAN_ABSOLUTE_PRESSURE: // PID 0B - Manifold Absolute Pressure
             {
                 // A represents pressure in kPa
                 value = A;
@@ -419,27 +428,27 @@ void ObdScan::analysData(const QString &dataReceived)
                 break;
             }
 
-            case 12: // RPM
+            case ENGINE_RPM: // PID 0C - RPM
                 // ((A*256)+B)/4
                 value = ((A * 256.0) + B) / 4.0;
                 ui->labelRpm->setText(QString::number(static_cast<int>(value)) + " RPM");
                 break;
 
-            case 13: // Vehicle Speed
+            case VEHICLE_SPEED: // PID 0D - Vehicle Speed
                 // A
                 m_speed = A;
                 break;
 
-            case 15: // Intake Air Temperature
+            case INTAKE_AIR_TEMP: // PID 0F - Intake Air Temperature
             {
                 // A-40
                 value = A - 40;
                 m_airTemp = value;
                 ui->labelTemp->setText(QString::number(value, 'f', 0) + " °C");
-                break;
+                    break;
             }
 
-            case 16: // MAF air flow rate
+            case MAF_AIR_FLOW: // PID 10 - MAF air flow rate
             {
                 // ((256*A)+B) / 100
                 value = ((256.0 * A) + B) / 100.0;  // MAF in g/s
@@ -484,7 +493,7 @@ void ObdScan::analysData(const QString &dataReceived)
                 break;
             }
 
-            case 51: // Absolute Barometric Pressure
+            case 0x33: // PID 33 - Absolute Barometric Pressure
                 // A kPa
                 value = A;
                 m_barometricPressure = value * 0.145038; // kPa to PSI

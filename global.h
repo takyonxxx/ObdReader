@@ -5,8 +5,18 @@
 #include <QVector>
 #include <QStringList>
 
-extern QStringList initializeCommands;
+struct ELM327Command {
+    QString command;
+    QString expectedResponse;
+    int timeout;
+
+    ELM327Command(const QString& cmd, const QString& resp, int timeout_ms = 1000)
+        : command(cmd), expectedResponse(resp), timeout(timeout_ms) {}
+};
+
+extern QList<ELM327Command> initializeCommands;
 extern QStringList runtimeCommands;
+extern QStringList basicInitCommands;
 extern int interval;
 extern const char* ERROR[];
 
