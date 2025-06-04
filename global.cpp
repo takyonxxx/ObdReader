@@ -7,7 +7,7 @@ const char* ERROR[] = { "UNABLE", "BUS BUSY", "BUS ERROR",
 // Global variable definitions - put these in your implementation file
 QList<ELM327Command> initializeCommands = {
     ELM327Command("ATZ", "ELM327", 7500),           // Reset ELM327
-    ELM327Command("ATSP5", "OK"),                   // Set protocol to ISO 9141-2/KWP2000
+    ELM327Command("ATSP3", "OK"),                   // Set protocol to ISO 9141-2/KWP2000
     ELM327Command("ATWM8115F13E", "OK"),            // Set wakeup message
     ELM327Command("ATSH8115F1", "OK"),              // Set header
     ELM327Command("ATFI", "BUS INIT: OK"),          // Fast initialization
