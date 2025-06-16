@@ -10,7 +10,7 @@ struct ELM327Command {
     QString expectedResponse;
     int timeout;
 
-    ELM327Command(const QString& cmd, const QString& resp, int timeout_ms = 1000)
+    ELM327Command(const QString& cmd, const QString& resp, int timeout_ms = 0)
         : command(cmd), expectedResponse(resp), timeout(timeout_ms) {}
 };
 

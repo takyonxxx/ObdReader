@@ -92,61 +92,46 @@ void MainWindow::processInitializationResponse(const QString& data)
     // Get current command from the new structure
     const ELM327Command& currentCmd = initializeCommands[commandOrder];
 
-    // Check if the response matches what we expect
-    bool responseValid = false;
-    if (!data.isEmpty()) {
-        // Clean response for comparison
-        QString cleanResponse = data.trimmed().toUpper();
-        QString expectedResponse = currentCmd.expectedResponse.trimmed().toUpper();
+    // Clean the response data
+    QString cleanResponse = data.trimmed().toUpper();
 
-        // Handle special cases for expected responses
-        if (expectedResponse == "ELM327") {
-            responseValid = cleanResponse.contains("ELM327");
-        } else if (expectedResponse == "OK") {
-            responseValid = cleanResponse.contains("OK");
-        } else if (expectedResponse == "BUS INIT: OK") {
-            responseValid = cleanResponse.contains("BUS INIT") && cleanResponse.contains("OK");
-        } else {
-            // For specific hex responses, check if they match or are similar
-            responseValid = (cleanResponse == expectedResponse) ||
-                           cleanResponse.contains(expectedResponse) ||
-                           expectedResponse.contains(cleanResponse);
+    // Handle the ATZ response specially (it returns version info)
+    if (commandOrder == 0 && currentCmd.command == "ATZ") {
+        if (cleanResponse.contains("ELM327")) {
+            textTerminal->append("✓ ELM327 reset successful: " + data.trimmed());
+            commandOrder++;
+
+            // Send next command with proper delay
+            if (commandOrder < initializeCommands.size()) {
+                const ELM327Command& nextCmd = initializeCommands[commandOrder];
+                textTerminal->append("-> Init: " + nextCmd.command);
+
+                // Use longer delay after reset
+                QTimer::singleShot(500, [this, nextCmd]() {
+                    if (m_connectionManager && m_connected) {
+                        m_connectionManager->send(nextCmd.command);
+                    }
+                });
+            }
+            return;
         }
     }
 
-    if (responseValid || commandOrder == 0) { // Always proceed after reset
-        commandOrder++;
+    commandOrder++;
 
-        // Send next command if available
-        if (commandOrder < initializeCommands.size()) {
-            const ELM327Command& nextCmd = initializeCommands[commandOrder];
-            textTerminal->append("-> Init: " + nextCmd.command);
+    // Send next command if available
+    if (commandOrder < initializeCommands.size()) {
+        const ELM327Command& nextCmd = initializeCommands[commandOrder];
+        textTerminal->append("-> Init: " + nextCmd.command);
 
-            // Use a timer for proper delay
-            QTimer::singleShot(150, [this, nextCmd]() {
-                if (m_connectionManager && m_connected) {
-                    m_connectionManager->send(nextCmd.command);
-                }
-            });
-        }
-    } else {
-        // Response didn't match, log warning but continue
-        textTerminal->append("⚠ Unexpected response for " + currentCmd.command +
-                           ", expected: " + currentCmd.expectedResponse +
-                           ", got: " + data);
-        commandOrder++;
+        // Use the delay specified in the command, with minimum 500ms
+        int delay = static_cast<int>(nextCmd.timeout);
 
-        // Continue with next command anyway
-        if (commandOrder < initializeCommands.size()) {
-            const ELM327Command& nextCmd = initializeCommands[commandOrder];
-            textTerminal->append("-> Init: " + nextCmd.command);
-
-            QTimer::singleShot(150, [this, nextCmd]() {
-                if (m_connectionManager && m_connected) {
-                    m_connectionManager->send(nextCmd.command);
-                }
-            });
-        }
+        QTimer::singleShot(delay, [this, nextCmd]() {
+            if (m_connectionManager && m_connected) {
+                m_connectionManager->send(nextCmd.command);
+            }
+        });
     }
 }
 
@@ -1000,7 +985,7 @@ void MainWindow::saveSettings()
         QString ip = "192.168.0.10";
 #elif defined(Q_OS_WINDOWS)
     // Windows configuration (elm -n 35000 -s car)
-    QString ip = "192.168.1.254";
+    QString ip = "192.168.1.4";
 #else
     // Default configuration for other platforms
     QString ip = "192.168.0.10";
