@@ -16,7 +16,6 @@ SOURCES += \
     global.cpp \
     main.cpp \
     mainwindow.cpp \
-    obdscan.cpp \
     settingsmanager.cpp
 
 HEADERS += \
@@ -26,12 +25,10 @@ HEADERS += \
     elmtcpsocket.h \
     global.h \
     mainwindow.h \
-    obdscan.h \
     settingsmanager.h
 
 FORMS += \
-    mainwindow.ui \
-    obdscan.ui
+    mainwindow.ui
 
 RESOURCES += \
     resources.qrc
