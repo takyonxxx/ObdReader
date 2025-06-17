@@ -55,6 +55,7 @@ private:
     // Queue management
     void startQueue();
     void stopQueue();
+    void refreshHeader();
 
     // OBD-II PID constants (Mode 01)
     static constexpr uint8_t ENGINE_LOAD = 0x04;          // Calculated engine load

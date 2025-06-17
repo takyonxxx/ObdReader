@@ -206,6 +206,17 @@ void ObdScan::applyStyles()
 
 void ObdScan::startQueue()
 {
+    // Set PCM header before starting the scan queue
+    if(ConnectionManager::getInstance() && ConnectionManager::getInstance()->isConnected()) {
+        // Clear any existing header first
+        ConnectionManager::getInstance()->send("ATSH");
+        QThread::msleep(200);
+
+        // Set PCM header for OBD scanning
+        ConnectionManager::getInstance()->send(PCM_ECU_HEADER);
+        QThread::msleep(300);
+    }
+
     connect(&m_timer, &QTimer::timeout, this, &ObdScan::onTimeout);
     m_timer.start(m_interval);
     m_running = true;
@@ -281,11 +292,8 @@ void ObdScan::onTimeout()
         m_commandOrder = 0;
     }
 
-    // Set PCM header before sending OBD command
+    // Send current command (header is already set in startQueue)
     if(m_commandOrder < runtimeCommands.size()) {
-        send(PCM_ECU_HEADER);  // Set header for PCM
-        QThread::msleep(50);   // Short delay
-
         // Get data for current command
         auto dataReceived = getData(runtimeCommands[m_commandOrder]);
 
@@ -304,17 +312,10 @@ void ObdScan::dataReceived(QString dataReceived)
     // Reset command order if we've reached the end
     if(m_commandOrder >= runtimeCommands.size()) {
         m_commandOrder = 0;
-        if(!runtimeCommands.isEmpty()) {
-            send(PCM_ECU_HEADER);  // Set header
-            QThread::msleep(50);
-            send(runtimeCommands[m_commandOrder]);
-        }
     }
 
-    // Send next command
+    // Send next command (header is already set)
     if(m_commandOrder < runtimeCommands.size()) {
-        send(PCM_ECU_HEADER);  // Set header
-        QThread::msleep(50);
         send(runtimeCommands[m_commandOrder]);
         m_commandOrder++;
     }
@@ -332,6 +333,17 @@ void ObdScan::dataReceived(QString dataReceived)
     }
     catch (...) {
         qDebug() << "Unknown exception in dataReceived";
+    }
+}
+
+void ObdScan::refreshHeader()
+{
+    if(ConnectionManager::getInstance() && ConnectionManager::getInstance()->isConnected()) {
+        // Clear and reset header
+        ConnectionManager::getInstance()->send("ATSH");
+        QThread::msleep(200);
+        ConnectionManager::getInstance()->send(PCM_ECU_HEADER);
+        QThread::msleep(300);
     }
 }
 

@@ -68,9 +68,10 @@ bool MainWindow::initializeELM327()
 
     // Start with the first command
     const ELM327Command& firstCmd = initializeCommands[0];
-    textTerminal->append("-> Starting ELM327 initialization...");
-    textTerminal->append("-> Init: " + firstCmd.command);
+    textTerminal->append("→ Starting ELM327 initialization...");
+    textTerminal->append("→ Init: " + firstCmd.command);
 
+    m_lastSentCommand = firstCmd.command;
     m_connectionManager->send(firstCmd.command);
 
     return true;
@@ -89,51 +90,262 @@ void MainWindow::processInitializationResponse(const QString& data)
         return;
     }
 
-    // Get current command from the new structure
+    // Get current command
     const ELM327Command& currentCmd = initializeCommands[commandOrder];
 
-    // Clean the response data
-    QString cleanResponse = data.trimmed().toUpper();
+    // Clean and process response
+    QString cleanResponse = removeEcho(data).trimmed().toUpper();
+    bool responseOK = false;
 
-    // Handle the ATZ response specially (it returns version info)
+    // Handle specific command responses
     if (commandOrder == 0 && currentCmd.command == "ATZ") {
-        if (cleanResponse.contains("ELM327")) {
-            textTerminal->append("✓ ELM327 reset successful: " + data.trimmed());
-            commandOrder++;
-
-            // Send next command with proper delay
-            if (commandOrder < initializeCommands.size()) {
-                const ELM327Command& nextCmd = initializeCommands[commandOrder];
-                textTerminal->append("-> Init: " + nextCmd.command);
-
-                // Use longer delay after reset
-                QTimer::singleShot(500, [this, nextCmd]() {
-                    if (m_connectionManager && m_connected) {
-                        m_connectionManager->send(nextCmd.command);
-                    }
-                });
-            }
-            return;
+        // ATZ returns version info
+        if (cleanResponse.contains("ELM327") || cleanResponse.contains("V1.5")) {
+            textTerminal->append("✓ ELM327 reset successful");
+            responseOK = true;
+        }
+    }
+    else if (currentCmd.command == "ATDP") {
+        // Protocol description
+        if (cleanResponse.contains("9141") || cleanResponse.contains("ISO")) {
+            textTerminal->append("✓ ISO 9141-2 protocol confirmed");
+            responseOK = true;
+        } else if (!cleanResponse.isEmpty()) {
+            textTerminal->append("⚠️ Protocol: " + cleanResponse);
+            responseOK = true;
+        }
+    }
+    else if (currentCmd.command == "ATWS") {
+        // Warm start
+        if (cleanResponse.contains("OK") || cleanResponse.contains("BUS INIT") ||
+            cleanResponse.contains("SEARCHING") || cleanResponse.isEmpty()) {
+            textTerminal->append("✓ Warm start completed");
+            responseOK = true;
+        }
+    }
+    else {
+        // Standard commands expecting OK
+        if (cleanResponse.contains("OK") || cleanResponse.isEmpty()) {
+            textTerminal->append("✓ " + currentCmd.command + " - OK");
+            responseOK = true;
         }
     }
 
+    // Continue to next command
     commandOrder++;
 
-    // Send next command if available
     if (commandOrder < initializeCommands.size()) {
         const ELM327Command& nextCmd = initializeCommands[commandOrder];
-        textTerminal->append("-> Init: " + nextCmd.command);
+        textTerminal->append("→ Init: " + nextCmd.command);
 
-        // Use the delay specified in the command, with minimum 500ms
-        int delay = static_cast<int>(nextCmd.timeout);
+        // Calculate delay based on command
+        int delay = 1000; // Default delay
+        if (nextCmd.command == "ATZ") delay = 2000;
+        else if (nextCmd.command == "ATSP3") delay = 1500;
+        else if (nextCmd.command == "ATWS") delay = 5000;
+        else if (nextCmd.command == "ATDP") delay = 1000;
 
         QTimer::singleShot(delay, [this, nextCmd]() {
             if (m_connectionManager && m_connected) {
+                m_lastSentCommand = nextCmd.command;
                 m_connectionManager->send(nextCmd.command);
             }
         });
     }
 }
+
+QString MainWindow::removeEcho(const QString& data)
+{
+    QString cleaned = data;
+
+    // Remove the last sent command if it appears in the response
+    if (!m_lastSentCommand.isEmpty()) {
+        // Remove exact match at the beginning
+        if (cleaned.startsWith(m_lastSentCommand, Qt::CaseInsensitive)) {
+            cleaned = cleaned.mid(m_lastSentCommand.length()).trimmed();
+        }
+
+        // Remove command anywhere in the string (case insensitive)
+        cleaned.remove(m_lastSentCommand, Qt::CaseInsensitive);
+    }
+
+    // Clean up common artifacts
+    cleaned.remove(QRegularExpression("^\\s*"));  // Leading whitespace
+    cleaned.remove(QRegularExpression("\\s*$"));  // Trailing whitespace
+
+    return cleaned.trimmed();
+}
+
+void MainWindow::dataReceived(QString data)
+{
+    if(m_reading)
+        return;
+
+    // Clean the data
+    data.remove("\r");
+    data.remove(">");
+    data.remove("?");
+    data.remove(",");
+    data.remove(QChar(0xFFFD)); // Remove � characters
+    data.remove(QChar(0x00));   // Remove null characters
+
+    // Check for errors first
+    if(isError(data.toUpper().toStdString())) {
+        textTerminal->append("❌ Error: " + data);
+        return;
+    }
+
+    // Remove echo and display clean response
+    if (!data.isEmpty()) {
+        QString cleanedData = removeEcho(data);
+
+        if (!cleanedData.isEmpty()) {
+            textTerminal->append("← " + cleanedData);
+        }
+    }
+
+    // Handle initialization sequence
+    if(!m_initialized) {
+        processInitializationResponse(data);
+    }
+    // Process the data if initialized
+    else if(m_initialized && !data.isEmpty()) {
+        try {
+            QString cleanedData = cleanData(data);
+            analysData(cleanedData);
+        }
+        catch (const std::exception& e) {
+            qDebug() << "Exception in data analysis: " << e.what();
+        }
+        catch (...) {
+            qDebug() << "Unknown exception in data analysis";
+        }
+    }
+}
+
+QString MainWindow::send(const QString &command)
+{
+    if(m_connectionManager && m_connected) {
+        QString cleanCommand = cleanData(command);
+        m_lastSentCommand = cleanCommand;
+
+        if (command.startsWith("ATSH", Qt::CaseInsensitive)) {
+            elm->setLastHeader(command);
+        }
+
+        textTerminal->append("→ " + cleanCommand);
+        m_connectionManager->send(cleanCommand);
+        QThread::msleep(5);
+    }
+
+    return QString();
+}
+
+void MainWindow::clearHeader()
+{
+    if(!m_connected)
+        return;
+
+    send("ATSH"); // Clear current header
+    QThread::msleep(200);
+}
+
+void MainWindow::onReadFaultClicked()
+{
+    if(!m_connected || !m_initialized)
+        return;
+
+    textTerminal->append("→ Reading PCM trouble codes...");
+
+    // Clear any existing header and set PCM header
+    QTimer::singleShot(100, [this]() {
+        clearHeader(); // Clear any existing header
+    });
+
+    QTimer::singleShot(400, [this]() {
+        send(PCM_ECU_HEADER); // Set header for PCM - "ATSH8115F1"
+    });
+
+    QTimer::singleShot(800, [this]() {
+        send("03"); // Standard Mode 03 - Request stored DTCs
+    });
+}
+
+void MainWindow::onReadTransFaultClicked()
+{
+    if(!m_connected || !m_initialized)
+        return;
+
+    textTerminal->append("→ Reading transmission trouble codes...");
+
+    // Clear any existing header and set transmission header
+    QTimer::singleShot(100, [this]() {
+        clearHeader(); // Clear any existing header
+    });
+
+    QTimer::singleShot(400, [this]() {
+        send(TRANS_ECU_HEADER); // Set header for transmission ECU
+    });
+
+    QTimer::singleShot(800, [this]() {
+        send("03"); // Request DTCs
+    });
+}
+
+void MainWindow::onSendClicked()
+{
+    if(!m_connected || !m_initialized)
+        return;
+
+    QString command = sendEdit->text();
+
+    // Clear header and set PCM header before sending command
+    QTimer::singleShot(100, [this]() {
+        clearHeader(); // Clear any existing header
+    });
+
+    QTimer::singleShot(400, [this, command]() {
+        send(PCM_ECU_HEADER); // Set header for PCM - "ATSH8115F1"
+    });
+
+    QTimer::singleShot(800, [this, command]() {
+        send(command);
+    });
+}
+
+void MainWindow::onReadClicked()
+{
+    if(!m_connected || !m_initialized)
+        return;
+
+    m_reading = true;
+    QString command = sendEdit->text();
+
+    // Clear header and set PCM header before sending command
+    clearHeader(); // Clear any existing header
+    QThread::msleep(300);
+
+    send(PCM_ECU_HEADER); // Set header for PCM - "ATSH8115F1"
+    QThread::msleep(300);
+
+    auto data = getData(command);
+
+    if(isError(data.toUpper().toStdString())) {
+        textTerminal->append("❌ Error: " + data);
+    }
+    else if (!data.isEmpty()) {
+        QString cleanedData = removeEcho(data);
+        if (!cleanedData.isEmpty()) {
+            textTerminal->append("← " + cleanedData);
+        }
+        analysData(cleanData(data));
+    }
+
+    m_reading = false;
+}
+
+// Rest of the implementation remains the same as your original code...
+// (setupUi, setupBluetoothUI, setupConnections, applyStyles, etc.)
 
 void MainWindow::setupUi()
 {
@@ -207,7 +419,7 @@ void MainWindow::setupUi()
     // Command input and send
     sendEdit = new QLineEdit(centralWidget);
     sendEdit->setMinimumHeight(44);
-    sendEdit->setText("21 12"); // Default to real-time data command
+    sendEdit->setText("0100"); // Default to basic OBD command
 
     pushSend = new QPushButton("    Send    ", centralWidget);
     pushSend->setMinimumHeight(44);
@@ -378,7 +590,7 @@ void MainWindow::setupBluetoothUI()
                                      "}"
                                      ).arg(TEXT_COLOR).arg(FONT_SIZE));
 
-    // Connect signals with strong connection type
+    // Connect signals
     connect(m_connectionTypeCombo, &QComboBox::currentIndexChanged,
             [this](int index) {
                 if (index == 0) {
@@ -395,10 +607,8 @@ void MainWindow::setupBluetoothUI()
                         m_bluetoothDevicesCombo->setVisible(true);
 
 #ifdef Q_OS_ANDROID
-                        // Request permissions before scanning on Android
                         requestBluetoothPermissions();
 #else
-                        // Direct scanning on other platforms
                         scanBluetoothDevices();
 #endif
                     }
@@ -408,15 +618,12 @@ void MainWindow::setupBluetoothUI()
     connect(m_bluetoothDevicesCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onBluetoothDeviceSelected, Qt::DirectConnection);
 
-    // Make sure the connection manager signals are connected properly
     if (m_connectionManager) {
-        // Disconnect any existing connections to avoid duplicates
         disconnect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
                    this, &MainWindow::onBluetoothDeviceFound);
         disconnect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
                    this, &MainWindow::onBluetoothDiscoveryCompleted);
 
-        // Reconnect with direct connection
         connect(m_connectionManager, &ConnectionManager::bluetoothDeviceFound,
                 this, &MainWindow::onBluetoothDeviceFound, Qt::DirectConnection);
         connect(m_connectionManager, &ConnectionManager::bluetoothDiscoveryCompleted,
@@ -748,72 +955,6 @@ void MainWindow::disconnected()
     textTerminal->append("✗ ELM327 disconnected");
 }
 
-void MainWindow::dataReceived(QString data)
-{
-    if(m_reading)
-        return;
-
-    // Clean the data
-    data.remove("\r");
-    data.remove(">");
-    data.remove("?");
-    data.remove(",");
-
-    // Check for errors
-    if(isError(data.toUpper().toStdString())) {
-        textTerminal->append("❌ Error: " + data);
-        return;
-    }
-    else if (!data.isEmpty()) {
-        QString cleanedData = removeEchoedCommands(data);
-
-        if (!cleanedData.isEmpty()) {
-            textTerminal->append("← " + cleanedData);
-        }
-    }
-
-    // Handle initialization sequence
-    if(!m_initialized) {
-        processInitializationResponse(data);
-    }
-    // Process the data if initialized
-    else if(m_initialized && !data.isEmpty()) {
-        try {
-            QString cleanedData = cleanData(data);
-            analysData(cleanedData);
-        }
-        catch (const std::exception& e) {
-            qDebug() << "Exception in data analysis: " << e.what();
-        }
-        catch (...) {
-            qDebug() << "Unknown exception in data analysis";
-        }
-    }
-}
-
-QString MainWindow::removeEchoedCommands(const QString& data)
-{
-    QString cleaned = data;
-
-    // Remove AT commands that might be echoed
-    QRegularExpression atCommandRegex("\\bAT[A-Z0-9]*\\b", QRegularExpression::CaseInsensitiveOption);
-    cleaned.remove(atCommandRegex);
-
-    // Remove OBD PID commands that might be echoed (like 0100, 2112, etc.)
-    QRegularExpression obdCommandRegex("\\b[0-9A-F]{2}\\s?[0-9A-F]{2}\\b", QRegularExpression::CaseInsensitiveOption);
-    QRegularExpressionMatchIterator iterator = obdCommandRegex.globalMatch(cleaned);
-
-    // Only remove if it appears at the beginning (likely an echo)
-    if (iterator.hasNext()) {
-        QRegularExpressionMatch match = iterator.next();
-        if (match.capturedStart() == 0) {
-            cleaned.remove(match.capturedStart(), match.capturedLength());
-        }
-    }
-
-    return cleaned.trimmed();
-}
-
 QString MainWindow::cleanData(const QString& input)
 {
     QString cleaned = input.trimmed().simplified();
@@ -825,22 +966,6 @@ QString MainWindow::cleanData(const QString& input)
 void MainWindow::stateChanged(QString state)
 {
     textTerminal->append(state);
-}
-
-QString MainWindow::send(const QString &command)
-{
-    if(m_connectionManager && m_connected) {
-        m_currentCommand = cleanData(command);
-        if (command.startsWith("ATSH", Qt::CaseInsensitive)) {
-            elm->setLastHeader(command);
-        }
-        textTerminal->append("→ " + m_currentCommand);
-
-        m_connectionManager->send(m_currentCommand);
-        QThread::msleep(5);  // Small delay for processing
-    }
-
-    return QString();
 }
 
 void MainWindow::getPids()
@@ -986,227 +1111,23 @@ void MainWindow::analysData(const QString &dataReceived)
                              ", MIL on: " + milText);
     }
 
-    // Handle Mode 03 (DTC codes) - CAN format with ECU ID (e.g. 7E8 02 43 ...)
-    if(resp.size() > 3 &&
-        resp[0].length() == 3 && resp[0].startsWith("7", Qt::CaseInsensitive) &&
-        resp[2].compare("43", Qt::CaseInsensitive) == 0) {
-
-        // This is a CAN format response with ECU ID
-        QString ecuId = resp[0];
-        bool isTransmission = (ecuId.compare(TRANS_MODULE_ID, Qt::CaseInsensitive) == 0);
-        bool isAirbag = (ecuId.compare(AIRBAG_MODULE_ID, Qt::CaseInsensitive) == 0);
-        bool isAbs = (ecuId.compare(ABS_MODULE_ID, Qt::CaseInsensitive) == 0);
-
-        if (isTransmission) {
-            textTerminal->append("⚙️ TRANSMISSION DTC response detected");
-        } else if (isAirbag) {
-            textTerminal->append("🛡️ AIRBAG/SRS DTC response detected");
-        } else if (isAbs) {
-            textTerminal->append("🛑 ABS DTC response detected");
-        } else {
-            textTerminal->append("DTC response detected from ECU: " + ecuId);
-        }
-
-        vec.clear();
-        // Skip ECU ID (7Ex), byte count, and response code (43)
-        vec.insert(vec.begin(), resp.begin() + 3, resp.end());
-
-        // Process DTCs
-        std::vector<QString> dtcCodes = elm->decodeDTC(vec);
-        if(!dtcCodes.empty()) {
-            QString dtc_list;
-
-            if (isTransmission) {
-                dtc_list = "⚙️ TRANSMISSION DTCs: ";
-
-                // Display transmission-specific descriptions
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-
-                    // Add transmission-specific descriptions
-                    if (code == "P0700") dtc_list.append("(Transmission Control System Malfunction) ");
-                    else if (code == "P0715") dtc_list.append("(Input/Turbine Speed Sensor Circuit) ");
-                    else if (code == "P0720") dtc_list.append("(Output Speed Sensor Circuit) ");
-                    else if (code == "P0730") dtc_list.append("(Incorrect Gear Ratio) ");
-                    else if (code == "P0740") dtc_list.append("(Torque Converter Clutch Circuit) ");
-                    else if (code == "P0750") dtc_list.append("(Shift Solenoid A Circuit) ");
-                    else if (code == "P0755") dtc_list.append("(Shift Solenoid B Circuit) ");
-                    else if (code == "P0760") dtc_list.append("(Shift Solenoid C Circuit) ");
-                    else if (code == "P0765") dtc_list.append("(Shift Solenoid D Circuit) ");
-                    else if (code == "P0771") dtc_list.append("(Shift Solenoid E Circuit) ");
-                }
-            }
-            else if (isAirbag) {
-                dtc_list = "🛡️ AIRBAG/SRS DTCs: ";
-
-                // Display airbag-specific descriptions
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-
-                    // Add airbag-specific descriptions
-                    if (code == "B1001") dtc_list.append("(Driver Airbag Squib Circuit Short to Ground) ");
-                    else if (code == "B1002") dtc_list.append("(Driver Airbag Squib Circuit Short to Battery) ");
-                    else if (code == "B1003") dtc_list.append("(Driver Airbag Squib Circuit Open) ");
-                    else if (code == "B1004") dtc_list.append("(Driver Airbag Squib Circuit Resistance Too High) ");
-                    else if (code == "B1005") dtc_list.append("(Driver Airbag Squib Circuit Resistance Too Low) ");
-                    else if (code == "B1010") dtc_list.append("(Passenger Airbag Squib Circuit Short to Ground) ");
-                    else if (code == "B1011") dtc_list.append("(Passenger Airbag Squib Circuit Short to Battery) ");
-                    else if (code == "B1012") dtc_list.append("(Passenger Airbag Squib Circuit Open) ");
-                    else if (code == "B1015") dtc_list.append("(Side Impact Sensor Left Circuit) ");
-                    else if (code == "B1016") dtc_list.append("(Side Impact Sensor Right Circuit) ");
-                }
-            }
-            else if (isAbs) {
-                dtc_list = "🛑 ABS DTCs: ";
-
-                // Display ABS-specific descriptions
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-
-                    // Add ABS-specific descriptions
-                    if (code == "C0035") dtc_list.append("(Left Front Wheel Speed Sensor Circuit) ");
-                    else if (code == "C0040") dtc_list.append("(Right Front Wheel Speed Sensor Circuit) ");
-                    else if (code == "C0045") dtc_list.append("(Left Rear Wheel Speed Sensor Circuit) ");
-                    else if (code == "C0050") dtc_list.append("(Right Rear Wheel Speed Sensor Circuit) ");
-                    else if (code == "C0060") dtc_list.append("(ABS Pump Motor Circuit) ");
-                    else if (code == "C0110") dtc_list.append("(Pump Motor Circuit Open/Shorted) ");
-                    else if (code == "C0121") dtc_list.append("(Valve Relay Circuit) ");
-                    else if (code == "C0196") dtc_list.append("(ABS Control Module Internal) ");
-                    else if (code == "C0214") dtc_list.append("(ABS Warning Lamp Circuit) ");
-                    else if (code == "C0245") dtc_list.append("(Wheel Speed Sensor Frequency Error) ");
-                    else if (code == "C0266") dtc_list.append("(ABS Performance/Function Mismatch) ");
-                }
-            }
-            else {
-                dtc_list = "DTCs from ECU " + ecuId + ": ";
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-                }
-            }
-
-            textTerminal->append(dtc_list);
-
-            // Add repair recommendations for specific modules
-            if (isTransmission && !dtcCodes.empty()) {
-                textTerminal->append("⚙️ TRANSMISSION RECOMMENDATIONS: ");
-                textTerminal->append("1. Check transmission fluid level and condition");
-                textTerminal->append("2. Inspect wiring harness for damage or corrosion");
-                textTerminal->append("3. Test shift solenoids and pressure sensors");
-                textTerminal->append("4. Verify proper battery voltage");
-                textTerminal->append("5. Common issue: Solenoid pack failure");
-            }
-            else if (isAirbag && !dtcCodes.empty()) {
-                textTerminal->append("🛡️ AIRBAG RECOMMENDATIONS: ");
-                textTerminal->append("1. Check seat belt connections and sensors");
-                textTerminal->append("2. Inspect airbag connectors under seats");
-                textTerminal->append("3. Verify clock spring continuity in steering wheel");
-                textTerminal->append("4. Check impact sensors for damage");
-                textTerminal->append("5. WARNING: Airbag work requires special precautions!");
-            }
-            else if (isAbs && !dtcCodes.empty()) {
-                textTerminal->append("🛑 ABS RECOMMENDATIONS: ");
-                textTerminal->append("1. Check wheel speed sensor wiring and connections");
-                textTerminal->append("2. Inspect ABS pump and relay");
-                textTerminal->append("3. Check for damaged tone rings on wheel hubs");
-                textTerminal->append("4. Verify proper battery voltage");
-                textTerminal->append("5. Common issue: Corrosion on WSS connectors");
-            }
-        }
-        else {
-            if (isTransmission) {
-                textTerminal->append("⚙️ No transmission DTCs reported");
-            } else if (isAirbag) {
-                textTerminal->append("🛡️ No airbag DTCs reported");
-            } else if (isAbs) {
-                textTerminal->append("🛑 No ABS DTCs reported");
-            } else {
-                textTerminal->append("No DTCs reported from ECU " + ecuId);
-            }
-        }
-    }
-    // Handle standard Mode 03 (DTC codes) response without CAN headers
-    else if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive)) {
-        // For non-CAN responses, check if we have a specific module selected
-        bool isTransmission = false;
-        bool isAirbag = false;
-        bool isAbs = false;
-
-        // Check the last sent header to determine which module we're talking to
-        QString lastHeader = elm->getLastHeader();
-
-        if (lastHeader.contains("ATSH8217F1", Qt::CaseInsensitive)) {
-            isTransmission = true;
-            textTerminal->append("⚙️ TRANSMISSION DTC response detected (ISO protocol)");
-        } else if (lastHeader.contains("ATSH8122F1", Qt::CaseInsensitive)) {
-            isAirbag = true;
-            textTerminal->append("🛡️ AIRBAG/SRS DTC response detected (ISO protocol)");
-        } else if (lastHeader.contains("ATSH8118F1", Qt::CaseInsensitive)) {
-            isAbs = true;
-            textTerminal->append("🛑 ABS DTC response detected (ISO protocol)");
-        } else {
-            textTerminal->append("Standard DTC response detected");
-        }
+    // Handle Mode 03 (DTC codes) - Standard response format
+    if(resp.size() > 1 && !resp[0].compare("43", Qt::CaseInsensitive)) {
+        textTerminal->append("Standard DTC response detected");
 
         vec.clear();  // Clear vector before inserting new data
         vec.insert(vec.begin(), resp.begin() + 1, resp.end());
 
         std::vector<QString> dtcCodes = elm->decodeDTC(vec);
         if(!dtcCodes.empty()) {
-            QString dtc_list;
-
-            if (isTransmission) {
-                dtc_list = "⚙️ TRANSMISSION DTCs: ";
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-                }
-                textTerminal->append(dtc_list);
-                textTerminal->append("⚙️ TRANSMISSION RECOMMENDATIONS: ");
-                textTerminal->append("1. Check transmission fluid level and condition");
-                textTerminal->append("2. Inspect wiring harness for damage or corrosion");
-                textTerminal->append("3. Test shift solenoids and pressure sensors");
+            QString dtc_list = "DTCs: ";
+            for(const auto &code : dtcCodes) {
+                dtc_list.append(code + " ");
             }
-            else if (isAirbag) {
-                dtc_list = "🛡️ AIRBAG/SRS DTCs: ";
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-                }
-                textTerminal->append(dtc_list);
-                textTerminal->append("🛡️ AIRBAG RECOMMENDATIONS: ");
-                textTerminal->append("1. Check seat belt connections and sensors");
-                textTerminal->append("2. Inspect airbag connectors under seats");
-                textTerminal->append("3. WARNING: Airbag work requires special precautions!");
-            }
-            else if (isAbs) {
-                dtc_list = "🛑 ABS DTCs: ";
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-                }
-                textTerminal->append(dtc_list);
-                textTerminal->append("🛑 ABS RECOMMENDATIONS: ");
-                textTerminal->append("1. Check wheel speed sensor wiring and connections");
-                textTerminal->append("2. Inspect ABS pump and relay");
-                textTerminal->append("3. Check for damaged tone rings on wheel hubs");
-                textTerminal->append("4. Verify proper battery voltage");
-                textTerminal->append("5. Common issue: Corrosion on WSS connectors");
-            }
-            else {
-                dtc_list = "DTCs: ";
-                for(const auto &code : dtcCodes) {
-                    dtc_list.append(code + " ");
-                }
-                textTerminal->append(dtc_list);
-            }
+            textTerminal->append(dtc_list);
         }
         else {
-            if (isTransmission) {
-                textTerminal->append("⚙️ No transmission DTCs reported");
-            } else if (isAirbag) {
-                textTerminal->append("🛡️ No airbag DTCs reported");
-            } else if (isAbs) {
-                textTerminal->append("🛑 No ABS DTCs reported");
-            } else {
-                textTerminal->append("Number of DTCs: 0");
-            }
+            textTerminal->append("Number of DTCs: 0");
         }
     }
 }
@@ -1236,46 +1157,6 @@ void MainWindow::onConnectClicked()
             m_connectionManager->disConnectElm();
         }
     }
-}
-
-void MainWindow::onSendClicked()
-{
-    if(!m_connected)
-        return;
-
-    QString command = sendEdit->text();
-
-    // Check if this is a real-time data command
-    if (command == "21 12" || command == "21 28") {
-        textTerminal->append("📊 Requesting real-time data...");
-    }
-
-    send(PCM_ECU_HEADER);       // Set header for PCM - "ATSH8115F1"
-    QThread::msleep(100);
-    send(command);
-}
-
-void MainWindow::onReadClicked()
-{
-    if(!m_connected)
-        return;
-
-    m_reading = true;
-    QString command = sendEdit->text();
-    send(PCM_ECU_HEADER);       // Set header for PCM - "ATSH8115F1"
-    QThread::msleep(100);
-
-    auto data = getData(command);
-
-    if(isError(data.toUpper().toStdString())) {
-        textTerminal->append("❌ Error: " + data);
-    }
-    else if (!data.isEmpty()) {
-        textTerminal->append("← " + data);
-    }
-
-    analysData(data);
-    m_reading = false;
 }
 
 void MainWindow::onSetProtocolClicked()
@@ -1319,133 +1200,59 @@ void MainWindow::onClearClicked()
     send(RESET);
 }
 
-void MainWindow::onReadTransFaultClicked()
+void MainWindow::onClearFaultClicked()
 {
-    if(!m_connected)
+    if(!m_connected || !m_initialized)
         return;
 
-    textTerminal->append("→ Reading transmission trouble codes...");
+    textTerminal->append("→ Clearing PCM trouble codes...");
 
-    send(TRANS_ECU_HEADER);     // Set header for transmission ECU
-    QThread::msleep(100);
+    // Clear any existing header and set PCM header
+    QTimer::singleShot(100, [this]() {
+        clearHeader(); // Clear any existing header
+    });
 
-    // Read DTCs from transmission
-    send(READ_TROUBLE);
-    QThread::msleep(500);       // Longer delay for complete response
+    QTimer::singleShot(400, [this]() {
+        send(PCM_ECU_HEADER); // Set header for PCM
+    });
 
-    textTerminal->append("Please check above for transmission codes");
+    QTimer::singleShot(800, [this]() {
+        send("04"); // Standard Mode 04 - Clear DTCs
+    });
+
+    QTimer::singleShot(1200, [this]() {
+        textTerminal->append("PCM codes cleared. Please cycle ignition.");
+    });
 }
 
 void MainWindow::onClearTransFaultClicked()
 {
-    if(!m_connected)
+    if(!m_connected || !m_initialized)
         return;
 
     textTerminal->append("→ Clearing transmission trouble codes...");
 
-    send(TRANS_ECU_HEADER);     // Set header for transmission ECU
-    QThread::msleep(100);
+    // Clear any existing header and set transmission header
+    QTimer::singleShot(100, [this]() {
+        clearHeader(); // Clear any existing header
+    });
 
-    // Clear DTCs
-    send(CLEAR_TROUBLE);
-    QThread::msleep(500);       // Wait for ECU to process
+    QTimer::singleShot(400, [this]() {
+        send(TRANS_ECU_HEADER); // Set transmission header
+    });
 
-    textTerminal->append("Transmission codes cleared. Please cycle ignition.");
-}
+    QTimer::singleShot(800, [this]() {
+        send("04"); // Clear DTCs
+    });
 
-void MainWindow::onReadFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("→ Reading PCM trouble codes...");
-
-    send(PCM_ECU_HEADER);       // Set header for PCM - "ATSH8115F1"
-    QThread::msleep(100);
-
-    // Request PCM DTCs (using standard Mode 03 request)
-    send(READ_TROUBLE);
-    QThread::msleep(500);       // Longer delay for complete response
-}
-
-void MainWindow::onClearFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("→ Clearing PCM trouble codes...");
-    send(PCM_ECU_HEADER);       // Set header for PCM - "ATSH8115F1"
-    QThread::msleep(100);
-
-    // Clear DTCs (using standard Mode 04 request)
-    send(CLEAR_TROUBLE);
-    QThread::msleep(250);
-
-    textTerminal->append("PCM codes cleared. Please cycle ignition.");
-}
-
-void MainWindow::onReadAirbagFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("→ Reading Airbag/SRS trouble codes...");
-    send(AIRBAG_ECU_HEADER);    // Set header for Airbag ECU - "ATSH8122F1"
-    QThread::msleep(100);
-
-    // Read DTCs (using standard Mode 03 request)
-    send(READ_TROUBLE);
-    QThread::msleep(500);       // Longer delay for complete response
-}
-
-void MainWindow::onClearAirbagFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("→ Clearing Airbag/SRS trouble codes...");
-
-    send(AIRBAG_ECU_HEADER);    // Set header for Airbag ECU - "ATSH8122F1"
-    QThread::msleep(100);
-
-    // Clear DTCs (using standard Mode 04 request)
-    send(CLEAR_TROUBLE);
-    QThread::msleep(250);
-
-    textTerminal->append("Airbag codes cleared. Please cycle ignition.");
-}
-
-void MainWindow::onReadAbsFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("→ Reading ABS trouble codes...");
-
-    send(ABS_ECU_HEADER);       // Set header for ABS ECU - "ATSH8118F1"
-    QThread::msleep(100);
-
-    // Read DTCs from ABS module
-    send(READ_TROUBLE);
-    QThread::msleep(500);       // Longer delay for complete response
-
-    textTerminal->append("Please check above for ABS codes");
-}
-
-void MainWindow::onClearAbsFaultClicked()
-{
-    if(!m_connected)
-        return;
-    textTerminal->append("→ Clearing ABS trouble codes...");
-
-    send(ABS_ECU_HEADER);       // Set header for ABS ECU - "ATSH8118F1"
-    QThread::msleep(100);
-
-    // Clear DTCs
-    send(CLEAR_TROUBLE);
-    QThread::msleep(500);       // Wait for ECU to process
-
-    textTerminal->append("ABS codes cleared. Please cycle ignition.");
+    QTimer::singleShot(1200, [this]() {
+        textTerminal->append("Transmission codes cleared. Please cycle ignition.");
+    });
 }
 
 void MainWindow::onScanClicked()
 {
-    if(!m_connected)
+    if(!m_connected || !m_initialized)
         return;
 
     ObdScan *obdScan = new ObdScan(this, runtimeCommands, interval);
@@ -1505,6 +1312,12 @@ void MainWindow::onBluetoothDeviceFound(const QString &name, const QString &addr
     int index = m_bluetoothDevicesCombo->count();
     m_bluetoothDevicesCombo->addItem(name + " (" + address + ")");
     m_deviceAddressMap[index] = address;
+
+    // Automatically select the first found device
+    if (index == 1) { // First real device (index 0 is "Select device...")
+        m_bluetoothDevicesCombo->setCurrentIndex(index);
+        textTerminal->append("Auto-selected: " + name + " (" + address + ")");
+    }
 
     // Display in terminal with QDebug for debugging
     textTerminal->append("Found device: " + name + " (" + address + ")");

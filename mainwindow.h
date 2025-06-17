@@ -1,6 +1,6 @@
-// ============= MAINWINDOW.H =============
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
+
 #include <QMainWindow>
 #include <QScreen>
 #include <QRegularExpression>
@@ -20,7 +20,7 @@
 #include "connectionmanager.h"
 #include "settingsmanager.h"
 #include "elm.h"
-#include "global.h"  // Include for ELM327Command
+#include "global.h"
 
 #if defined(Q_OS_ANDROID)
 #include <QJniObject>
@@ -35,6 +35,7 @@ class ObdScan;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
+
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
@@ -57,10 +58,6 @@ public slots:
     void onSearchPidsStateChanged(int state);
     void onReadTransFaultClicked();
     void onClearTransFaultClicked();
-    void onReadAirbagFaultClicked();
-    void onClearAirbagFaultClicked();
-    void onReadAbsFaultClicked();
-    void onClearAbsFaultClicked();
     void onBluetoothDeviceFound(const QString &name, const QString &address);
     void onBluetoothDiscoveryCompleted();
     void onBluetoothDeviceSelected(int index);
@@ -84,13 +81,14 @@ private:
     void analysData(const QString &dataReceived);
     void getPids();
     QString cleanData(const QString& input);
-    QString removeEchoedCommands(const QString& data);
+    QString removeEcho(const QString& data);
     bool isError(std::string msg);
     void scanBluetoothDevices();
+    void clearHeader(); // Header temizleme fonksiyonu
 
     // ELM327 initialization
     bool initializeELM327();
-    void processInitializationResponse(const QString& data);    
+    void processInitializationResponse(const QString& data);
 
     // UI components
     QWidget *centralWidget;
@@ -148,23 +146,17 @@ private:
     ConnectionManager *m_connectionManager{nullptr};
     SettingsManager *m_settingsManager{nullptr};
     ELM *elm{nullptr};
-    QStringList runtimeCommands;     // Commands for regular polling
-    int commandOrder{0};             // Current position in command sequence
-    int interval{100};               // Refresh interval in ms
-    bool m_connected{false};         // ELM connection state
-    bool m_initialized{false};       // Initialization complete
-    bool m_reading{false};           // Reading in progress
-    bool m_searchPidsEnable{false};  // Auto-detect PIDs
-    bool m_autoRefresh{false};       // Auto-refresh enabled
-    QRect desktopRect;               // Screen dimensions
-    QMap<int, QString> m_deviceAddressMap; // Maps combo box index to device address
-
-    // Real-time data storage
-    double m_currentRPM{0.0};
-    double m_currentCoolantTemp{0.0};
-    double m_currentIAT{0.0};
-    double m_currentTPS{0.0};
-    QString m_currentCommand{};
+    QStringList runtimeCommands;
+    int commandOrder{0};
+    int interval{100};
+    bool m_connected{false};
+    bool m_initialized{false};
+    bool m_reading{false};
+    bool m_searchPidsEnable{false};
+    bool m_autoRefresh{false};
+    QRect desktopRect;
+    QMap<int, QString> m_deviceAddressMap;
+    QString m_lastSentCommand;
 
 #ifdef Q_OS_ANDROID
     void requestBluetoothPermissions();
