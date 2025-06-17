@@ -135,115 +135,6 @@ void MainWindow::processInitializationResponse(const QString& data)
     }
 }
 
-void MainWindow::processRealTimeData(const QString& command, const QString& response)
-{
-    QStringList hexData = response.split(" ", Qt::SkipEmptyParts);
-
-    // Process based on command type (following Java sample pattern)
-    if (command == "21 12") {
-        // Extract coolant temperature, IAT, TPS from response
-        if (hexData.size() >= 16) {
-            // Coolant temperature at offset 2-3 (bytes 2-3)
-            if (hexData.size() > 3) {
-                m_currentCoolantTemp = extractTemperature(hexData, 2);
-                displayRealTimeData("Coolant", m_currentCoolantTemp, "°C");
-            }
-
-            // IAT at offset 4-5 (bytes 4-5)
-            if (hexData.size() > 5) {
-                m_currentIAT = extractTemperature(hexData, 4);
-                displayRealTimeData("IAT", m_currentIAT, "°C");
-            }
-
-            // TPS at offset 14-15 (bytes 14-15)
-            if (hexData.size() > 15) {
-                m_currentTPS = extractTPS(hexData);
-                displayRealTimeData("TPS", m_currentTPS, "%");
-            }
-        }
-    }
-    else if (command == "21 28") {
-        // Extract RPM and IQ from response
-        if (hexData.size() >= 6) {
-            // RPM at offset 2-3 (bytes 2-3)
-            if (hexData.size() > 3) {
-                m_currentRPM = extractRPM(hexData);
-                displayRealTimeData("RPM", m_currentRPM, "rpm");
-            }
-
-            // IQ at offset 4-5 (bytes 4-5) - injection quantity
-            if (hexData.size() > 5) {
-                bool ok1, ok2;
-                int byte1 = hexData[4].toInt(&ok1, 16);
-                int byte2 = hexData[5].toInt(&ok2, 16);
-                if (ok1 && ok2) {
-                    double iq = ((byte1 << 8) + byte2) / 100.0; // Convert to mg
-                    displayRealTimeData("IQ", iq, "mg");
-                }
-            }
-        }
-    }
-}
-
-double MainWindow::extractRPM(const QStringList& data)
-{
-    if (data.size() < 4) return 0.0;
-
-    bool ok1, ok2;
-    int byte1 = data[2].toInt(&ok1, 16);
-    int byte2 = data[3].toInt(&ok2, 16);
-
-    if (ok1 && ok2) {
-        return (byte1 << 8) + byte2; // RPM = (byte1 * 256) + byte2
-    }
-    return 0.0;
-}
-
-double MainWindow::extractTemperature(const QStringList& data, int offset)
-{
-    if (data.size() < offset + 2) return -273.1;
-
-    bool ok1, ok2;
-    int byte1 = data[offset].toInt(&ok1, 16);
-    int byte2 = data[offset + 1].toInt(&ok2, 16);
-
-    if (ok1 && ok2) {
-        // Temperature = ((byte1 * 256) + byte2) / 10 - 273.1
-        return (((byte1 << 8) + byte2) / 10.0) - 273.1;
-    }
-    return -273.1;
-}
-
-double MainWindow::extractTPS(const QStringList& data)
-{
-    if (data.size() < 16) return 0.0;
-
-    bool ok1, ok2;
-    int byte1 = data[14].toInt(&ok1, 16);
-    int byte2 = data[15].toInt(&ok2, 16);
-
-    if (ok1 && ok2) {
-        // TPS = ((byte1 * 256) + byte2) / 100
-        return ((byte1 << 8) + byte2) / 100.0;
-    }
-    return 0.0;
-}
-
-void MainWindow::displayRealTimeData(const QString& parameter, double value, const QString& unit)
-{
-    QString formattedValue;
-
-    if (parameter == "RPM") {
-        formattedValue = QString::number(static_cast<int>(value));
-    } else if (parameter.contains("Temp") || parameter == "Coolant" || parameter == "IAT") {
-        formattedValue = QString::number(value, 'f', 1);
-    } else {
-        formattedValue = QString::number(value, 'f', 2);
-    }
-
-    textTerminal->append(QString("📊 %1: %2 %3").arg(parameter, formattedValue, unit));
-}
-
 void MainWindow::setupUi()
 {
     // Create central widget and main layouts
@@ -874,7 +765,11 @@ void MainWindow::dataReceived(QString data)
         return;
     }
     else if (!data.isEmpty()) {
-        textTerminal->append("← " + data);
+        QString cleanedData = removeEchoedCommands(data);
+
+        if (!cleanedData.isEmpty()) {
+            textTerminal->append("← " + cleanedData);
+        }
     }
 
     // Handle initialization sequence
@@ -885,13 +780,6 @@ void MainWindow::dataReceived(QString data)
     else if(m_initialized && !data.isEmpty()) {
         try {
             QString cleanedData = cleanData(data);
-
-            // Check if this is a real-time data response
-            if (data.startsWith("61 12") || data.startsWith("61 28")) {
-                QString command = (data.startsWith("61 12")) ? "21 12" : "21 28";
-                processRealTimeData(command, data);
-            }
-
             analysData(cleanedData);
         }
         catch (const std::exception& e) {
@@ -901,6 +789,29 @@ void MainWindow::dataReceived(QString data)
             qDebug() << "Unknown exception in data analysis";
         }
     }
+}
+
+QString MainWindow::removeEchoedCommands(const QString& data)
+{
+    QString cleaned = data;
+
+    // Remove AT commands that might be echoed
+    QRegularExpression atCommandRegex("\\bAT[A-Z0-9]*\\b", QRegularExpression::CaseInsensitiveOption);
+    cleaned.remove(atCommandRegex);
+
+    // Remove OBD PID commands that might be echoed (like 0100, 2112, etc.)
+    QRegularExpression obdCommandRegex("\\b[0-9A-F]{2}\\s?[0-9A-F]{2}\\b", QRegularExpression::CaseInsensitiveOption);
+    QRegularExpressionMatchIterator iterator = obdCommandRegex.globalMatch(cleaned);
+
+    // Only remove if it appears at the beginning (likely an echo)
+    if (iterator.hasNext()) {
+        QRegularExpressionMatch match = iterator.next();
+        if (match.capturedStart() == 0) {
+            cleaned.remove(match.capturedStart(), match.capturedLength());
+        }
+    }
+
+    return cleaned.trimmed();
 }
 
 QString MainWindow::cleanData(const QString& input)
@@ -919,13 +830,13 @@ void MainWindow::stateChanged(QString state)
 QString MainWindow::send(const QString &command)
 {
     if(m_connectionManager && m_connected) {
-        auto cmd = cleanData(command);
+        m_currentCommand = cleanData(command);
         if (command.startsWith("ATSH", Qt::CaseInsensitive)) {
             elm->setLastHeader(command);
         }
-        textTerminal->append("→ " + cmd);
+        textTerminal->append("→ " + m_currentCommand);
 
-        m_connectionManager->send(cmd);
+        m_connectionManager->send(m_currentCommand);
         QThread::msleep(5);  // Small delay for processing
     }
 
@@ -1361,11 +1272,6 @@ void MainWindow::onReadClicked()
     }
     else if (!data.isEmpty()) {
         textTerminal->append("← " + data);
-
-        // Process real-time data if applicable
-        if (command == "21 12" || command == "21 28") {
-            processRealTimeData(command, data);
-        }
     }
 
     analysData(data);

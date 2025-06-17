@@ -84,19 +84,13 @@ private:
     void analysData(const QString &dataReceived);
     void getPids();
     QString cleanData(const QString& input);
+    QString removeEchoedCommands(const QString& data);
     bool isError(std::string msg);
     void scanBluetoothDevices();
 
     // ELM327 initialization
     bool initializeELM327();
-    void processInitializationResponse(const QString& data);
-
-    // Real-time data processing methods
-    void processRealTimeData(const QString& command, const QString& response);
-    double extractRPM(const QStringList& data);
-    double extractTemperature(const QStringList& data, int offset);
-    double extractTPS(const QStringList& data);
-    void displayRealTimeData(const QString& parameter, double value, const QString& unit);
+    void processInitializationResponse(const QString& data);    
 
     // UI components
     QWidget *centralWidget;
@@ -170,6 +164,7 @@ private:
     double m_currentCoolantTemp{0.0};
     double m_currentIAT{0.0};
     double m_currentTPS{0.0};
+    QString m_currentCommand{};
 
 #ifdef Q_OS_ANDROID
     void requestBluetoothPermissions();

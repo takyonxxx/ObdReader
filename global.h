@@ -16,7 +16,6 @@ struct ELM327Command {
 
 extern QList<ELM327Command> initializeCommands;
 extern QStringList runtimeCommands;
-extern QStringList basicInitCommands;
 extern int interval;
 extern const char* ERROR[];
 

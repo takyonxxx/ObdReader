@@ -86,7 +86,8 @@ void ElmBluetoothManager::deviceDiscovered(const QBluetoothDeviceInfo &device)
 
     // Check if this device is likely an OBD adapter
     bool isObdDevice = false;
-    QStringList obdKeywords = {"OBD", "ELM", "OBDII", "OBD2", "OBD-II", "Viecar", "V-Link", "OBDLink", " vLinker"};
+    //QStringList obdKeywords = {"Viecar", "OBD", "ELM", "OBDII", "OBD2", "OBD-II", "V-Link", "OBDLink", " vLinker"};
+    QStringList obdKeywords = {"Viecar"};
 
     // Case-insensitive check for OBD-related terms in the device name
     for (const QString &keyword : obdKeywords) {
