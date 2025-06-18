@@ -111,7 +111,7 @@ std::vector<QString> ELM::prepareResponseToDecode(const QString &response_str)
         }
     }
 
-    // Handle ISO 9141-2, ISO 14230-4 (KWP2000), and generic responses
+    // Handle ISO_14230_4_KWP_FAST, ISO 14230-4 (KWP2000), and generic responses
     // These typically come in formats like "41 0C 20 00" without header bytes
     if (cleanedResponse.contains(QRegularExpression("^[0-9A-F]{2} [0-9A-F]{2}",
                                                     QRegularExpression::CaseInsensitiveOption))) {

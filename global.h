@@ -76,7 +76,7 @@ struct WJCommand {
 
 // Jeep WJ comprehensive sensor data structure
 struct WJSensorData {
-    // Engine (EDC15) data - ISO 9141-2
+    // Engine (EDC15) data - ISO_14230_4_KWP_FAST
     struct EngineData {
         double mafActual;           // g/s
         double mafSpecified;        // g/s
@@ -188,7 +188,7 @@ struct WJModuleConfig {
 namespace WJ {
 // Module headers and addresses
 namespace Headers {
-extern const QString ENGINE_EDC15;      // ISO 9141-2
+extern const QString ENGINE_EDC15;      // ISO_14230_4_KWP_FAST
 extern const QString TRANSMISSION;      // J1850 VPW
 extern const QString PCM;              // J1850 VPW
 extern const QString ABS;              // J1850 VPW
@@ -215,7 +215,7 @@ extern const QString TRANSMISSION;
 extern const QString PCM;
 }
 
-// Engine (EDC15) commands - ISO 9141-2
+// Engine (EDC15) commands - ISO_14230_4_KWP_FAST
 namespace Engine {
 extern const QString START_COMMUNICATION;
 extern const QString SECURITY_ACCESS_REQUEST;
@@ -266,7 +266,7 @@ extern const QString READ_STABILITY_DATA;
 
 // Expected response prefixes
 namespace Responses {
-// ISO 9141-2 responses (Engine)
+// ISO_14230_4_KWP_FAST responses (Engine)
 extern const QString ENGINE_MAF;
 extern const QString ENGINE_RAIL_PRESSURE;
 extern const QString ENGINE_INJECTOR;
@@ -307,8 +307,11 @@ QList<WJCommand> getProtocolSwitchCommands(WJProtocol fromProtocol, WJProtocol t
 // Get module-specific initialization
 QList<WJCommand> getModuleInitCommands(WJModule module);
 
-// Get diagnostic commands for specific module
-QStringList getDiagnosticCommands(WJModule module);
+// ADD THIS - Missing declaration
+QList<WJCommand> getCompleteModuleConnection(WJModule module);
+
+// Get diagnostic commands for specific module - FIX RETURN TYPE
+QList<WJCommand> getDiagnosticCommands(WJModule module);  // Changed from QStringList to QList<WJCommand>
 
 // Get module configuration
 WJModuleConfig getModuleConfig(WJModule module);
@@ -371,7 +374,7 @@ QStringList getABSSpecificDTCs();
 // Enhanced data parser for multi-protocol support
 class WJDataParser {
 public:
-    // Engine data parsing (ISO 9141-2)
+    // Engine data parsing (ISO_14230_4_KWP_FAST)
     static bool parseEngineMAFData(const QString& data, WJSensorData& sensorData);
     static bool parseEngineRailPressureData(const QString& data, WJSensorData& sensorData);
     static bool parseEngineMAPData(const QString& data, WJSensorData& sensorData);
@@ -454,7 +457,7 @@ public:
     bool clearAllFaultCodes();
     bool readAllSensorData(WJSensorData& data);
 
-    // Engine-specific operations (ISO 9141-2)
+    // Engine-specific operations (ISO_14230_4_KWP_FAST)
     bool readEngineData(WJSensorData::EngineData& engineData);
     bool readEngineFaultCodes(QList<WJ_DTC>& dtcs);
     bool clearEngineFaultCodes();
@@ -497,10 +500,17 @@ private:
     bool validateModuleResponse(const QString& response, WJModule module);
 };
 
+
 // Legacy compatibility
 using ELM327Command = WJCommand;
 using EDC15State = WJInitState;
 using EDC15SensorData = WJSensorData;
 using EDC15_DTC = WJ_DTC;
+
+namespace EDC15Commands {
+QList<ELM327Command> getInitSequence();
+QList<ELM327Command> getAlternativeInit();
+QStringList getDiagnosticCommands();  // ADD THIS LINE
+}
 
 #endif // GLOBAL_H

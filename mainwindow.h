@@ -75,7 +75,7 @@ private slots:
     void onConnectClicked();
     void onDisconnectClicked();
 
-    // Engine diagnostic commands (ISO 9141-2)
+    // Engine diagnostic commands (ISO_14230_4_KWP_FAST)
     void onReadEngineMAFClicked();
     void onReadEngineRailPressureClicked();
     void onReadEngineMAPClicked();
@@ -245,7 +245,7 @@ private:
     // Tab widget for different modules
     QTabWidget* moduleTabWidget;
 
-    // Engine tab (ISO 9141-2) controls
+    // Engine tab (ISO_14230_4_KWP_FAST) controls
     QWidget* engineTab;
     QPushButton* readEngineMAFButton;
     QPushButton* readEngineRailPressureButton;

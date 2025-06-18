@@ -123,7 +123,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Initial status
     logWJData("Enhanced Jeep WJ Diagnostic Tool Initialized");
     logWJData("Target: Jeep Grand Cherokee WJ 2.7 CRD (All Modules)");
-    logWJData("Protocols: ISO 9141-2 (Engine) + J1850 VPW (Trans/PCM/ABS)");
+    logWJData("Protocols: ISO_14230_4_KWP_FAST (Engine) + J1850 VPW (Trans/PCM/ABS)");
 
     // Display connection settings
     if (settingsManager) {
@@ -145,7 +145,7 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::setupWJInitializationCommands() {
-    // Start with ISO 9141-2 for engine module by default
+    // Start with ISO_14230_4_KWP_FAST for engine module by default
     initializationCommands = WJCommands::getInitSequence(PROTOCOL_ISO_14230_4_KWP_FAST);
 }
 
@@ -1353,9 +1353,9 @@ void MainWindow::onAutoDetectProtocolClicked() {
 
     logWJData("→ Auto-detecting available protocols...");
 
-    // Try ISO 9141-2 first (engine)
+    // Try ISO_14230_4_KWP_FAST first (engine)
     if (switchToProtocol(PROTOCOL_ISO_14230_4_KWP_FAST)) {
-        logWJData("✓ ISO 9141-2 protocol detected and available");
+        logWJData("✓ ISO_14230_4_KWP_FAST protocol detected and available");
         currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
         protocolCombo->setCurrentIndex(1);
     }
@@ -1660,7 +1660,7 @@ bool MainWindow::initializeWJCommunication() {
     logWJData("→ Starting WJ multi-protocol initialization...");
     logWJData("→ Target: Jeep Grand Cherokee WJ 2.7 CRD (All Modules)");
 
-    // Start with engine module (ISO 9141-2) initialization
+    // Start with engine module (ISO_14230_4_KWP_FAST) initialization
     const WJCommand& firstCmd = initializationCommands[0];
     logWJData("→ " + firstCmd.description + ": " + firstCmd.command);
 
@@ -1808,7 +1808,7 @@ void MainWindow::onInitializationTimeout() {
     // Set basic state
     currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
     currentModule = MODULE_ENGINE_EDC15;
-    currentProtocolLabel->setText("Current: ISO 9141-2");
+    currentProtocolLabel->setText("Current: ISO_14230_4_KWP_FAST");
     currentModuleLabel->setText("Current: Engine (Limited)");
 
     // Enable multi-module buttons
@@ -2016,7 +2016,7 @@ void MainWindow::parseWJResponse(const QString& response) {
     }
 }
 
-// Engine Diagnostic Commands (ISO 9141-2)
+// Engine Diagnostic Commands (ISO_14230_4_KWP_FAST)
 void MainWindow::onReadEngineMAFClicked() {
     if (!switchToModule(MODULE_ENGINE_EDC15)) {
         logWJData("❌ Failed to switch to engine module");
