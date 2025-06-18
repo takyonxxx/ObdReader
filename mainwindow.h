@@ -41,6 +41,13 @@ class ELM;
 class SettingsManager;
 class ConnectionManager;
 
+enum LogLevel {
+    LOG_MINIMAL,    // Only critical events
+    LOG_NORMAL,     // Important events
+    LOG_VERBOSE,    // All events (current behavior)
+    LOG_DEBUG       // Everything including responses
+};
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -48,6 +55,8 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+    void setLogLevel(LogLevel level) { currentLogLevel = level; }
 
 private slots:
     // Connection type management
@@ -112,6 +121,7 @@ private slots:
     void onDisconnected();
     void onDataReceived(const QString& data);
     void onConnectionStateChanged(const QString& state);
+    void processDataLine(const QString& line);
 
     // WJ initialization timer
     void onInitializationTimeout();
@@ -178,6 +188,7 @@ private:
     bool isWJError(const QString& response);
     bool validateWJResponse(const QString& response, const QString& expectedStart);
     void logWJData(const QString& message);
+    bool isImportantMessage(const QString& message);
     void updateSensorDisplays();
     void updateEngineDisplay();
     void updateTransmissionDisplay();
@@ -205,7 +216,7 @@ private:
     QVBoxLayout* mainLayout;
     QGridLayout* controlsLayout;
     QHBoxLayout* connectionTypeLayout;
-    QHBoxLayout* connectionLayout;
+    QVBoxLayout* connectionLayout;
     QHBoxLayout* protocolLayout;
     QVBoxLayout* moduleLayout;
 
@@ -369,6 +380,8 @@ private:
 
     // Screen properties
     QRect desktopRect;
+    LogLevel currentLogLevel = LOG_MINIMAL;
+    QString dataBuffer;
 
     // Constants
     static const QString WJ_ECU_HEADER_ENGINE;

@@ -61,17 +61,17 @@ struct WJCommand {
     QString expectedResponse;
     QString description;
     int timeoutMs;
-    bool critical;
+    bool isCritical;
     WJProtocol requiredProtocol;
     WJModule targetModule;
 
-    WJCommand() : timeoutMs(1000), critical(false), requiredProtocol(PROTOCOL_UNKNOWN), targetModule(MODULE_UNKNOWN) {}
+    WJCommand() : timeoutMs(1000), isCritical(false), requiredProtocol(PROTOCOL_UNKNOWN), targetModule(MODULE_UNKNOWN) {}
 
     WJCommand(const QString& cmd, const QString& resp, const QString& desc,
               int timeout = 1000, WJProtocol protocol = PROTOCOL_UNKNOWN,
               WJModule module = MODULE_UNKNOWN, bool isCritical = false)
         : command(cmd), expectedResponse(resp), description(desc),
-        timeoutMs(timeout), critical(isCritical), requiredProtocol(protocol), targetModule(module) {}
+        timeoutMs(timeout), isCritical(isCritical), requiredProtocol(protocol), targetModule(module) {}
 };
 
 // Jeep WJ comprehensive sensor data structure

@@ -39,6 +39,50 @@ MainWindow::MainWindow(QWidget *parent)
     , initialized(false)
     , continuousReading(false)
     , readingInterval(1000)
+    // Initialize ALL label pointers to nullptr for safety
+    , mafActualLabel(nullptr)
+    , mafSpecifiedLabel(nullptr)
+    , railPressureActualLabel(nullptr)
+    , railPressureSpecifiedLabel(nullptr)
+    , mapActualLabel(nullptr)
+    , mapSpecifiedLabel(nullptr)
+    , coolantTempLabel(nullptr)
+    , intakeAirTempLabel(nullptr)
+    , throttlePositionLabel(nullptr)
+    , rpmLabel(nullptr)
+    , injectionQuantityLabel(nullptr)
+    , batteryVoltageLabel(nullptr)
+    , injector1Label(nullptr)
+    , injector2Label(nullptr)
+    , injector3Label(nullptr)
+    , injector4Label(nullptr)
+    , injector5Label(nullptr)
+    // Initialize transmission labels
+    , transOilTempLabel(nullptr)
+    , transInputSpeedLabel(nullptr)
+    , transOutputSpeedLabel(nullptr)
+    , transCurrentGearLabel(nullptr)
+    , transLinePressureLabel(nullptr)
+    , transSolenoidALabel(nullptr)
+    , transSolenoidBLabel(nullptr)
+    , transTCCSolenoidLabel(nullptr)
+    , transTorqueConverterLabel(nullptr)
+    // Initialize PCM labels
+    , vehicleSpeedLabel(nullptr)
+    , engineLoadLabel(nullptr)
+    , fuelTrimSTLabel(nullptr)
+    , fuelTrimLTLabel(nullptr)
+    , o2Sensor1Label(nullptr)
+    , o2Sensor2Label(nullptr)
+    , timingAdvanceLabel(nullptr)
+    , barometricPressureLabel(nullptr)
+    // Initialize ABS labels
+    , wheelSpeedFLLabel(nullptr)
+    , wheelSpeedFRLabel(nullptr)
+    , wheelSpeedRLLabel(nullptr)
+    , wheelSpeedRRLabel(nullptr)
+    , yawRateLabel(nullptr)
+    , lateralAccelLabel(nullptr)
 {
     setWindowTitle("Enhanced Jeep WJ Diagnostic Tool - Dual Protocol Support");
 
@@ -50,11 +94,11 @@ MainWindow::MainWindow(QWidget *parent)
     // Setup WJ initialization commands
     setupWJInitializationCommands();
 
-    // Setup UI
+    // Setup UI FIRST
     setupUI();
     applyWJStyling();
 
-    // Initialize components
+    // Then initialize components
     elm = ELM::getInstance();
     settingsManager = SettingsManager::getInstance();
     connectionManager = ConnectionManager::getInstance();
@@ -134,8 +178,8 @@ void MainWindow::setupUI() {
     setCentralWidget(centralWidget);
 
     mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setSpacing(10);
-    mainLayout->setContentsMargins(10, 10, 10, 10);
+    mainLayout->setSpacing(2);  // Reduced from 10
+    mainLayout->setContentsMargins(3, 3, 3, 3);  // Reduced from 10,10,10,10
 
     // Setup different UI sections
     setupConnectionTypeControls();
@@ -145,143 +189,232 @@ void MainWindow::setupUI() {
     setupTabWidget();
     setupTerminalDisplay();
 
-    // Add layouts to main layout
+    // Add layouts to main layout with adjusted stretch factors
     mainLayout->addLayout(connectionTypeLayout);
     mainLayout->addLayout(connectionLayout);
-    mainLayout->addLayout(protocolLayout);
-    mainLayout->addWidget(moduleTabWidget, 1); // Tabs take most space
-    mainLayout->addWidget(terminalDisplay);
+    //mainLayout->addLayout(protocolLayout);
+    mainLayout->addWidget(moduleTabWidget, 3); // Increased stretch factor
+    mainLayout->addWidget(terminalDisplay, 1); // Added stretch factor
 }
 
 void MainWindow::setupConnectionTypeControls() {
     connectionTypeLayout = new QHBoxLayout();
+    connectionTypeLayout->setSpacing(2);
 
     // Connection type selection
-    connectionTypeLabel = new QLabel("Connection:");
-    connectionTypeLabel->setMinimumHeight(40);
+    connectionTypeLabel = new QLabel("Conn Type:");  // Shortened
+    connectionTypeLabel->setMinimumHeight(30);  // Reduced from 40
 
     connectionTypeCombo = new QComboBox();
-    connectionTypeCombo->setMinimumHeight(44);
+    connectionTypeCombo->setMinimumHeight(30);  // Reduced from 44
     connectionTypeCombo->addItem("WiFi");
-    connectionTypeCombo->addItem("Bluetooth");
-    connectionTypeCombo->setCurrentIndex(0); // Default to WiFi
+    connectionTypeCombo->addItem("BT");  // Shortened
+    connectionTypeCombo->setCurrentIndex(0);
 
     // Bluetooth device selection
-    btDeviceLabel = new QLabel("BT Device:");
-    btDeviceLabel->setMinimumHeight(40);
-    btDeviceLabel->setVisible(false); // Hidden by default (WiFi selected)
+    btDeviceLabel = new QLabel("Device:");  // Shortened
+    btDeviceLabel->setMinimumHeight(30);
+    btDeviceLabel->setVisible(false);
 
     bluetoothDevicesCombo = new QComboBox();
-    bluetoothDevicesCombo->setMinimumHeight(44);
-    bluetoothDevicesCombo->addItem("Select device...");
-    bluetoothDevicesCombo->setVisible(false); // Hidden by default
+    bluetoothDevicesCombo->setMinimumHeight(30);
+    bluetoothDevicesCombo->addItem("Select...");  // Shortened
+    bluetoothDevicesCombo->setVisible(false);
 
     // Scan bluetooth button
-    scanBluetoothButton = new QPushButton("Scan BT");
-    scanBluetoothButton->setMinimumHeight(44);
+    scanBluetoothButton = new QPushButton("Scan");  // Shortened
+    scanBluetoothButton->setMinimumHeight(30);
+    scanBluetoothButton->setMinimumWidth(50);  // Added width constraint
     scanBluetoothButton->setVisible(false);
 
     connectionTypeLayout->addWidget(connectionTypeLabel);
-    connectionTypeLayout->addWidget(connectionTypeCombo);
+    connectionTypeLayout->addWidget(connectionTypeCombo, 1);
     connectionTypeLayout->addWidget(btDeviceLabel);
-    connectionTypeLayout->addWidget(bluetoothDevicesCombo, 1);
+    connectionTypeLayout->addWidget(bluetoothDevicesCombo, 2);
     connectionTypeLayout->addWidget(scanBluetoothButton);
-    connectionTypeLayout->addStretch();
 }
 
+// Fix setupConnectionControls to have stacked layout
 void MainWindow::setupConnectionControls() {
-    connectionLayout = new QHBoxLayout();
+    connectionLayout = new QVBoxLayout();  // Changed to QVBoxLayout for stacking
+    connectionLayout->setSpacing(2);
 
-    // Connection status
+    // Connection status labels - keep these side by side
+    QHBoxLayout* statusLayout = new QHBoxLayout();
+    statusLayout->setSpacing(2);
+
     connectionStatusLabel = new QLabel("Status: Disconnected");
-    connectionStatusLabel->setMinimumHeight(40);
+    connectionStatusLabel->setMinimumHeight(25);
+    connectionStatusLabel->setMinimumWidth(150);  // Reduced from 200
+    connectionStatusLabel->setWordWrap(true);
 
     protocolLabel = new QLabel("Protocol: Unknown");
-    protocolLabel->setMinimumHeight(40);
+    protocolLabel->setMinimumHeight(25);
+    protocolLabel->setWordWrap(true);
 
-    // Connection buttons
-    connectButton = new QPushButton("Connect to WJ");
-    connectButton->setMinimumHeight(50);
+    statusLayout->addWidget(connectionStatusLabel);
+    statusLayout->addWidget(protocolLabel);
+    statusLayout->addStretch(); // Push labels to left
+
+    // Connection buttons - put these on second row
+    QHBoxLayout* buttonLayout = new QHBoxLayout();
+    buttonLayout->setSpacing(2);
+
+    connectButton = new QPushButton("Connect");
+    connectButton->setMinimumHeight(35);
     connectButton->setMinimumWidth(150);
 
     disconnectButton = new QPushButton("Disconnect");
-    disconnectButton->setMinimumHeight(50);
-    disconnectButton->setMinimumWidth(120);
+    disconnectButton->setMinimumHeight(35);
+    disconnectButton->setMinimumWidth(150);
     disconnectButton->setEnabled(false);
 
-    // Clear and exit buttons
     clearTerminalButton = new QPushButton("Reset");
-    clearTerminalButton->setMinimumHeight(50);
+    clearTerminalButton->setMinimumHeight(35);
+    clearTerminalButton->setMinimumWidth(75);
 
     exitButton = new QPushButton("Exit");
-    exitButton->setMinimumHeight(50);
+    exitButton->setMinimumHeight(35);
+    exitButton->setMinimumWidth(75);
 
-    connectionLayout->addWidget(connectionStatusLabel);
-    connectionLayout->addWidget(protocolLabel);
-    connectionLayout->addStretch();
-    connectionLayout->addWidget(connectButton);
-    connectionLayout->addWidget(disconnectButton);
-    connectionLayout->addWidget(clearTerminalButton);
-    connectionLayout->addWidget(exitButton);
+    buttonLayout->addWidget(connectButton);
+    buttonLayout->addWidget(disconnectButton);
+    buttonLayout->addWidget(clearTerminalButton);
+    buttonLayout->addWidget(exitButton);
+    buttonLayout->addStretch(); // Push buttons to left
+
+    // Add both layouts to the main connection layout (vertically stacked)
+    connectionLayout->addLayout(statusLayout);   // First row: status labels
+    connectionLayout->addLayout(buttonLayout);   // Second row: buttons
 }
 
 void MainWindow::setupProtocolControls() {
     protocolLayout = new QHBoxLayout();
+    protocolLayout->setSpacing(2);
 
     // Protocol selection
-    QLabel* protocolSelectionLabel = new QLabel("Protocol:");
+    QLabel* protocolSelectionLabel = new QLabel("Proto:");  // Shortened
     protocolCombo = new QComboBox();
-    protocolCombo->setMinimumHeight(40);
-    protocolCombo->addItem("Auto Detect");
-    protocolCombo->addItem("ISO 9141-2 (Engine)");
-    protocolCombo->addItem("J1850 VPW (Trans/PCM/ABS)");
+    protocolCombo->setMinimumHeight(30);
+    protocolCombo->addItem("Auto");        // Shortened
+    protocolCombo->addItem("ISO");         // Shortened
+    protocolCombo->addItem("J1850");       // Shortened
     protocolCombo->setCurrentIndex(0);
 
-    autoDetectProtocolButton = new QPushButton("Auto Detect");
-    autoDetectProtocolButton->setMinimumHeight(40);
+    autoDetectProtocolButton = new QPushButton("Detect");  // Shortened
+    autoDetectProtocolButton->setMinimumHeight(30);
+    autoDetectProtocolButton->setMinimumWidth(50);
 
     switchProtocolButton = new QPushButton("Switch");
-    switchProtocolButton->setMinimumHeight(40);
+    switchProtocolButton->setMinimumHeight(30);
+    switchProtocolButton->setMinimumWidth(50);
     switchProtocolButton->setEnabled(false);
 
-    currentProtocolLabel = new QLabel("Current: Unknown");
-    currentProtocolLabel->setMinimumHeight(40);
+    currentProtocolLabel = new QLabel("Curr: Unknown");  // Shortened
+    currentProtocolLabel->setMinimumHeight(30);
+    currentProtocolLabel->setWordWrap(true);
 
     protocolLayout->addWidget(protocolSelectionLabel);
-    protocolLayout->addWidget(protocolCombo);
+    protocolLayout->addWidget(protocolCombo, 1);
     protocolLayout->addWidget(autoDetectProtocolButton);
     protocolLayout->addWidget(switchProtocolButton);
-    protocolLayout->addWidget(currentProtocolLabel);
-    protocolLayout->addStretch();
+    protocolLayout->addWidget(currentProtocolLabel, 1);
 }
 
 void MainWindow::setupModuleSelection() {
     moduleLayout = new QVBoxLayout();
 
-    QLabel* moduleLabel = new QLabel("Active Module:");
+    QLabel* moduleLabel = new QLabel("Module:");  // Shortened
     moduleCombo = new QComboBox();
-    moduleCombo->setMinimumHeight(40);
-    moduleCombo->addItem("Engine (EDC15) - ISO 9141-2");
-    moduleCombo->addItem("Transmission - J1850 VPW");
-    moduleCombo->addItem("PCM - J1850 VPW");
-    moduleCombo->addItem("ABS - J1850 VPW");
+    moduleCombo->setMinimumHeight(30);
+    moduleCombo->addItem("Engine");        // Shortened
+    moduleCombo->addItem("Transmission");         // Shortened
+    moduleCombo->addItem("PCM");
+    moduleCombo->addItem("ABS");
     moduleCombo->setCurrentIndex(0);
 
-    currentModuleLabel = new QLabel("Current: Engine (EDC15)");
-    currentModuleLabel->setMinimumHeight(40);
+    currentModuleLabel = new QLabel("Current: Engine");
+    currentModuleLabel->setMinimumHeight(25);
+    currentModuleLabel->setWordWrap(true);
 
     QHBoxLayout* moduleSelectionLayout = new QHBoxLayout();
+    moduleSelectionLayout->setSpacing(2);
     moduleSelectionLayout->addWidget(moduleLabel);
-    moduleSelectionLayout->addWidget(moduleCombo);
-    moduleSelectionLayout->addWidget(currentModuleLabel);
-    moduleSelectionLayout->addStretch();
+    moduleSelectionLayout->addWidget(moduleCombo, 2);
+    moduleSelectionLayout->addWidget(currentModuleLabel, 1);
 
     moduleLayout->addLayout(moduleSelectionLayout);
 }
 
 void MainWindow::setupTabWidget() {
     moduleTabWidget = new QTabWidget();
-    moduleTabWidget->setMinimumHeight(400);
+    moduleTabWidget->setMinimumHeight(250);
+
+    // Method 1: Use stylesheet to increase font size and tab size
+    moduleTabWidget->setStyleSheet(
+        "QTabWidget::pane { "
+        "    border: 1px solid #555555; "
+        "    background-color: #2b2b2b; "
+        "}"
+        "QTabWidget::tab-bar { alignment: center; }"
+        "QTabBar::tab {"
+        "    background: #3c3c3c;"
+        "    border: 1px solid #555555;"
+        "    padding: 8px 8px;"  // Increased padding for bigger tabs
+        "    margin-right: 2px;"
+        "    font-size: 14px;"     // Increased font size
+        "    font-weight: bold;"   // Make text bold
+        "    color: #e0e0e0;"      // Light text color
+        "    min-width: 50px;"     // Minimum width for each tab
+        "    min-height: 30px;"    // Minimum height for each tab
+        "}"
+        "QTabBar::tab:selected {"
+        "    background: #4a4a4a;"
+        "    border-bottom: 1px solid #4a4a4a;"
+        "    color: #ffffff;"       // White text for selected tab
+        "}"
+        "QTabBar::tab:hover {"
+        "    background: #404040;"
+        "    color: #ffffff;"
+        "}"
+        // Style for tab shift buttons (scroll buttons)
+        "QTabBar::scroller {"
+        "    width: 40px;"          // Make scroll buttons wider
+        "    height: 40px;"         // Make scroll buttons taller
+        "}"
+        "QTabBar QToolButton {"
+        "    background: #3c3c3c;"
+        "    border: 1px solid #555555;"
+        "    color: #e0e0e0;"
+        "    font-size: 16px;"      // Bigger arrow symbols
+        "    font-weight: bold;"
+        "    width: 40px;"          // Button width
+        "    height: 40px;"         // Button height
+        "    margin: 2px;"
+        "}"
+        "QTabBar QToolButton:hover {"
+        "    background: #404040;"
+        "    color: #ffffff;"
+        "}"
+        "QTabBar QToolButton:pressed {"
+        "    background: #4a4a4a;"
+        "    border: 1px solid #666666;"
+        "}"
+        "QTabBar QToolButton::left-arrow {"
+        "    width: 20px;"
+        "    height: 12px;"
+        "}"
+        "QTabBar QToolButton::right-arrow {"
+        "    width: 20px;"
+        "    height: 12px;"
+        "}"
+        );
+
+    // Alternative Method 2: Set font programmatically
+    QFont tabFont = moduleTabWidget->font();
+    tabFont.setPointSize(12);        // Set font size
+    tabFont.setBold(true);           // Make bold
+    moduleTabWidget->setFont(tabFont);
 
     setupEngineTab();
     setupTransmissionTab();
@@ -289,12 +422,12 @@ void MainWindow::setupTabWidget() {
     setupABSTab();
     setupMultiModuleTab();
 
-    // Add tabs
-    moduleTabWidget->addTab(engineTab, "Engine (ISO 9141-2)");
-    moduleTabWidget->addTab(transmissionTab, "Transmission (J1850 VPW)");
-    moduleTabWidget->addTab(pcmTab, "PCM (J1850 VPW)");
-    moduleTabWidget->addTab(absTab, "ABS (J1850 VPW)");
-    moduleTabWidget->addTab(multiModuleTab, "Multi-Module Operations");
+    // Add tabs with full names since we have bigger tabs now
+    moduleTabWidget->addTab(engineTab, "Engine Control");
+    moduleTabWidget->addTab(transmissionTab, "Transmission");
+    moduleTabWidget->addTab(pcmTab, "PCM Module");
+    moduleTabWidget->addTab(absTab, "ABS System");
+    moduleTabWidget->addTab(multiModuleTab, "Multi-Module");
 
     // Set engine tab as default
     moduleTabWidget->setCurrentIndex(0);
@@ -303,21 +436,23 @@ void MainWindow::setupTabWidget() {
 void MainWindow::setupEngineTab() {
     engineTab = new QWidget();
     QVBoxLayout* engineLayout = new QVBoxLayout(engineTab);
+    engineLayout->setSpacing(2);
 
-    // Engine diagnostic buttons
+    // Engine diagnostic buttons - make them smaller
     QGridLayout* engineButtonLayout = new QGridLayout();
+    engineButtonLayout->setSpacing(2);
 
-    readEngineMAFButton = new QPushButton("Read MAF");
-    readEngineRailPressureButton = new QPushButton("Read Rail Pressure");
-    readEngineMAPButton = new QPushButton("Read MAP");
-    readEngineInjectorButton = new QPushButton("Read Injectors");
-    readEngineMiscButton = new QPushButton("Read Misc Data");
-    readEngineBatteryButton = new QPushButton("Read Battery");
-    readEngineAllSensorsButton = new QPushButton("Read All Sensors");
-    readEngineFaultCodesButton = new QPushButton("Read Fault Codes");
-    clearEngineFaultCodesButton = new QPushButton("Clear Fault Codes");
+    readEngineMAFButton = new QPushButton("MAF");
+    readEngineRailPressureButton = new QPushButton("Rail");
+    readEngineMAPButton = new QPushButton("MAP");
+    readEngineInjectorButton = new QPushButton("Injectors");
+    readEngineMiscButton = new QPushButton("Misc");
+    readEngineBatteryButton = new QPushButton("Battery");
+    readEngineAllSensorsButton = new QPushButton("All");
+    readEngineFaultCodesButton = new QPushButton("Faults");
+    clearEngineFaultCodesButton = new QPushButton("Clear");
 
-    // Set minimum sizes and disable initially
+    // Set smaller sizes for all buttons
     QList<QPushButton*> engineButtons = {
         readEngineMAFButton, readEngineRailPressureButton, readEngineMAPButton,
         readEngineInjectorButton, readEngineMiscButton, readEngineBatteryButton,
@@ -325,11 +460,14 @@ void MainWindow::setupEngineTab() {
     };
 
     for (auto* button : engineButtons) {
-        button->setMinimumHeight(45);
-        button->setEnabled(false);
+        if (button) { // Safety check
+            button->setMinimumHeight(30);
+            button->setMaximumHeight(35);
+            button->setEnabled(false);
+        }
     }
 
-    // Arrange engine buttons
+    // Arrange engine buttons in 3x3 grid
     engineButtonLayout->addWidget(readEngineMAFButton, 0, 0);
     engineButtonLayout->addWidget(readEngineRailPressureButton, 0, 1);
     engineButtonLayout->addWidget(readEngineMAPButton, 0, 2);
@@ -340,49 +478,39 @@ void MainWindow::setupEngineTab() {
     engineButtonLayout->addWidget(readEngineFaultCodesButton, 2, 1);
     engineButtonLayout->addWidget(clearEngineFaultCodesButton, 2, 2);
 
-    // Engine sensor display
-    QGroupBox* engineSensorGroup = new QGroupBox("Engine Sensor Data (EDC15)");
+    // Engine sensor display - IMPORTANT: Initialize ALL labels
+    QGroupBox* engineSensorGroup = new QGroupBox("Engine Data");
     QGridLayout* engineSensorLayout = new QGridLayout(engineSensorGroup);
+    engineSensorLayout->setSpacing(1);
 
-    // Create engine sensor labels
+    // Create ALL engine sensor labels - this was missing some labels!
     mafActualLabel = new QLabel("MAF Actual: -- g/s");
-    mafSpecifiedLabel = new QLabel("MAF Specified: -- g/s");
-    railPressureActualLabel = new QLabel("Rail Pressure: -- bar");
-    railPressureSpecifiedLabel = new QLabel("Rail Pressure Spec: -- bar");
-    mapActualLabel = new QLabel("MAP Actual: -- mbar");
-    mapSpecifiedLabel = new QLabel("MAP Specified: -- mbar");
-    coolantTempLabel = new QLabel("Coolant Temp: -- °C");
-        intakeAirTempLabel = new QLabel("IAT: -- °C");
-        throttlePositionLabel = new QLabel("TPS: -- %");
+    mafSpecifiedLabel = new QLabel("MAF Spec: -- g/s");
+    railPressureActualLabel = new QLabel("Rail: -- bar");
+    railPressureSpecifiedLabel = new QLabel("Rail Spec: -- bar");
+    mapActualLabel = new QLabel("MAP: -- mbar");
+    mapSpecifiedLabel = new QLabel("MAP Spec: -- mbar");
+    coolantTempLabel = new QLabel("Cool: -- °C");
+    intakeAirTempLabel = new QLabel("IAT: -- °C");
+    throttlePositionLabel = new QLabel("TPS: -- %");
     rpmLabel = new QLabel("RPM: -- rpm");
     injectionQuantityLabel = new QLabel("IQ: -- mg");
-    batteryVoltageLabel = new QLabel("Battery: -- V");
+    batteryVoltageLabel = new QLabel("Batt: -- V");
 
-    injector1Label = new QLabel("Inj 1: -- mg");
-    injector2Label = new QLabel("Inj 2: -- mg");
-    injector3Label = new QLabel("Inj 3: -- mg");
-    injector4Label = new QLabel("Inj 4: -- mg");
-    injector5Label = new QLabel("Inj 5: -- mg");
+    // Initialize injector labels that were missing
+    injector1Label = new QLabel("Inj1: -- mg");
+    injector2Label = new QLabel("Inj2: -- mg");
+    injector3Label = new QLabel("Inj3: -- mg");
+    injector4Label = new QLabel("Inj4: -- mg");
+    injector5Label = new QLabel("Inj5: -- mg");
 
-    // Arrange engine sensors
+    // Arrange in compact grid for small screen
     engineSensorLayout->addWidget(mafActualLabel, 0, 0);
-    engineSensorLayout->addWidget(mafSpecifiedLabel, 0, 1);
-    engineSensorLayout->addWidget(railPressureActualLabel, 1, 0);
-    engineSensorLayout->addWidget(railPressureSpecifiedLabel, 1, 1);
-    engineSensorLayout->addWidget(mapActualLabel, 2, 0);
-    engineSensorLayout->addWidget(mapSpecifiedLabel, 2, 1);
-    engineSensorLayout->addWidget(coolantTempLabel, 3, 0);
-    engineSensorLayout->addWidget(intakeAirTempLabel, 3, 1);
-    engineSensorLayout->addWidget(throttlePositionLabel, 4, 0);
-    engineSensorLayout->addWidget(rpmLabel, 4, 1);
-    engineSensorLayout->addWidget(injectionQuantityLabel, 5, 0);
-    engineSensorLayout->addWidget(batteryVoltageLabel, 5, 1);
-
-    engineSensorLayout->addWidget(injector1Label, 6, 0);
-    engineSensorLayout->addWidget(injector2Label, 6, 1);
-    engineSensorLayout->addWidget(injector3Label, 7, 0);
-    engineSensorLayout->addWidget(injector4Label, 7, 1);
-    engineSensorLayout->addWidget(injector5Label, 8, 0);
+    engineSensorLayout->addWidget(railPressureActualLabel, 0, 1);
+    engineSensorLayout->addWidget(mapActualLabel, 1, 0);
+    engineSensorLayout->addWidget(coolantTempLabel, 1, 1);
+    engineSensorLayout->addWidget(rpmLabel, 2, 0);
+    engineSensorLayout->addWidget(batteryVoltageLabel, 2, 1);
 
     engineLayout->addLayout(engineButtonLayout);
     engineLayout->addWidget(engineSensorGroup);
@@ -642,11 +770,44 @@ void MainWindow::setupMultiModuleTab() {
 }
 
 void MainWindow::setupTerminalDisplay() {
+    QWidget* terminalContainer = new QWidget();
+    QVBoxLayout* terminalLayout = new QVBoxLayout(terminalContainer);
+    terminalLayout->setSpacing(2);
+    terminalLayout->setContentsMargins(0, 0, 0, 0);
+
+    // Terminal controls
+    QHBoxLayout* terminalControls = new QHBoxLayout();
+    terminalControls->setSpacing(2);
+
+    QLabel* logLevelLabel = new QLabel("Log:");
+    logLevelLabel->setStyleSheet("font-size: 8pt;");
+
+    QComboBox* logLevelCombo = new QComboBox();
+    logLevelCombo->addItem("Minimal");
+    logLevelCombo->addItem("Normal");
+    logLevelCombo->addItem("Verbose");
+    logLevelCombo->setCurrentIndex(0); // Default to minimal
+    logLevelCombo->setStyleSheet("font-size: 8pt;");
+    logLevelCombo->setMaximumWidth(80);
+
+    connect(logLevelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [this](int index) {
+                currentLogLevel = static_cast<LogLevel>(index);
+            });
+
+    terminalControls->addWidget(logLevelLabel);
+    terminalControls->addWidget(logLevelCombo);
+    terminalControls->addStretch();
+
+    // Terminal display
     terminalDisplay = new QTextBrowser();
-    terminalDisplay->setMinimumHeight(200);
-    terminalDisplay->setMaximumHeight(250);
-    terminalDisplay->setFont(QFont("Consolas", 10));
+    terminalDisplay->setMinimumHeight(300);
+    terminalDisplay->setFont(QFont("Consolas", 8));
+
+    terminalLayout->addLayout(terminalControls);
+    terminalLayout->addWidget(terminalDisplay);
 }
+
 
 // Setup Connections
 void MainWindow::setupConnections() {
@@ -750,18 +911,17 @@ void MainWindow::setupConnections() {
 
 // Apply WJ Styling
 void MainWindow::applyWJStyling() {
-    // Enhanced WJ color scheme - professional automotive look
-    const QString PRIMARY_COLOR = "#1E3A8A";      // Deep blue
-    const QString SECONDARY_COLOR = "#1E40AF";    // Blue
-    const QString ACCENT_COLOR = "#3B82F6";       // Light blue
-    const QString SUCCESS_COLOR = "#059669";      // Green
-    const QString WARNING_COLOR = "#D97706";      // Orange
-    const QString DANGER_COLOR = "#DC2626";       // Red
-    const QString TEXT_COLOR = "#F8FAFC";         // Light text
-    const QString BACKGROUND_COLOR = "#0F172A";   // Dark background
-    const QString SURFACE_COLOR = "#1E293B";      // Surface color
+    const QString PRIMARY_COLOR = "#1E3A8A";
+    const QString SECONDARY_COLOR = "#1E40AF";
+    const QString ACCENT_COLOR = "#3B82F6";
+    const QString SUCCESS_COLOR = "#34495e";
+    const QString WARNING_COLOR = "#D97706";
+    const QString DANGER_COLOR = "#DC2626";
+    const QString TEXT_COLOR = "#F8FAFC";
+    const QString BACKGROUND_COLOR = "#0F172A";
+    const QString SURFACE_COLOR = "#1E293B";
 
-    // Main window style
+    // Main window style with smaller fonts
     setStyleSheet(QString(
                       "QMainWindow {"
                       "    background-color: %1;"
@@ -770,16 +930,16 @@ void MainWindow::applyWJStyling() {
                       "QLabel {"
                       "    color: %2;"
                       "    font-weight: bold;"
-                      "    font-size: 12pt;"
+                      "    font-size: 9pt;"  // Reduced from 12pt
                       "}"
                       "QPushButton {"
                       "    background-color: %3;"
                       "    color: %2;"
                       "    border: 1px solid %4;"
-                      "    border-radius: 6px;"
-                      "    padding: 8px 16px;"
+                      "    border-radius: 4px;"  // Reduced from 6px
+                      "    padding: 4px 8px;"   // Reduced from 8px 16px
                       "    font-weight: bold;"
-                      "    font-size: 11pt;"
+                      "    font-size: 9pt;"     // Reduced from 11pt
                       "}"
                       "QPushButton:hover {"
                       "    background-color: %4;"
@@ -795,90 +955,94 @@ void MainWindow::applyWJStyling() {
                       "    background-color: %8;"
                       "    color: %2;"
                       "    border: 1px solid %3;"
-                      "    border-radius: 4px;"
-                      "    padding: 8px;"
-                      "    font-size: 11pt;"
+                      "    border-radius: 3px;"  // Reduced from 4px
+                      "    padding: 4px;"       // Reduced from 8px
+                      "    font-size: 9pt;"     // Reduced from 11pt
                       "}"
                       "QComboBox::drop-down {"
                       "    border: none;"
-                      "    width: 30px;"
+                      "    width: 20px;"        // Reduced from 30px
                       "}"
                       "QComboBox::down-arrow {"
-                      "    width: 16px;"
-                      "    height: 16px;"
+                      "    width: 12px;"        // Reduced from 16px
+                      "    height: 12px;"       // Reduced from 16px
                       "}"
                       "QComboBox QAbstractItemView {"
                       "    background-color: %8;"
                       "    border: 1px solid %3;"
-                      "    border-radius: 6px;"
+                      "    border-radius: 4px;"
                       "    selection-background-color: %3;"
                       "    color: %2;"
-                      "    padding: 4px;"
+                      "    padding: 2px;"       // Reduced from 4px
+                      "    font-size: 9pt;"
                       "}"
                       "QTextBrowser {"
                       "    background-color: %8;"
                       "    color: %2;"
                       "    border: 1px solid %3;"
-                      "    border-radius: 4px;"
+                      "    border-radius: 3px;"
                       "    font-family: 'Consolas', monospace;"
-                      "    font-size: 10pt;"
+                      "    font-size: 8pt;"     // Reduced from 10pt
                       "}"
                       "QGroupBox {"
                       "    font-weight: bold;"
-                      "    border: 2px solid %3;"
-                      "    border-radius: 8px;"
-                      "    margin-top: 1ex;"
-                      "    padding-top: 10px;"
+                      "    font-size: 9pt;"     // Added smaller font
+                      "    border: 1px solid %3;"  // Reduced from 2px
+                      "    border-radius: 4px;"    // Reduced from 8px
+                      "    margin-top: 0.5ex;"     // Reduced from 1ex
+                      "    padding-top: 5px;"      // Reduced from 10px
                       "}"
                       "QGroupBox::title {"
                       "    subcontrol-origin: margin;"
-                      "    left: 10px;"
-                      "    padding: 0 5px 0 5px;"
+                      "    left: 5px;"          // Reduced from 10px
+                      "    padding: 0 3px 0 3px;"  // Reduced from 5px
                       "}"
                       "QTabWidget::pane {"
                       "    border: 1px solid %3;"
-                      "    border-radius: 4px;"
+                      "    border-radius: 3px;"  // Reduced from 4px
                       "}"
                       "QTabBar::tab {"
                       "    background-color: %8;"
                       "    color: %2;"
-                      "    padding: 8px 16px;"
-                      "    margin-right: 2px;"
-                      "    border-top-left-radius: 4px;"
-                      "    border-top-right-radius: 4px;"
+                      "    padding: 4px 8px;"    // Reduced from 8px 16px
+                      "    margin-right: 1px;"   // Reduced from 2px
+                      "    border-top-left-radius: 3px;"   // Reduced from 4px
+                      "    border-top-right-radius: 3px;"  // Reduced from 4px
+                      "    font-size: 9pt;"      // Added smaller font
                       "}"
                       "QTabBar::tab:selected {"
                       "    background-color: %3;"
                       "}"
                       "QCheckBox {"
                       "    font-weight: bold;"
-                      "    font-size: 11pt;"
+                      "    font-size: 9pt;"      // Reduced from 11pt
                       "}"
                       "QSlider::groove:horizontal {"
                       "    border: 1px solid %3;"
-                      "    height: 8px;"
+                      "    height: 6px;"         // Reduced from 8px
                       "    background: %8;"
-                      "    border-radius: 4px;"
+                      "    border-radius: 3px;"  // Reduced from 4px
                       "}"
                       "QSlider::handle:horizontal {"
                       "    background: %4;"
                       "    border: 1px solid %3;"
-                      "    width: 18px;"
-                      "    height: 18px;"
-                      "    border-radius: 9px;"
-                      "    margin: -5px 0;"
+                      "    width: 14px;"         // Reduced from 18px
+                      "    height: 14px;"        // Reduced from 18px
+                      "    border-radius: 7px;"  // Reduced from 9px
+                      "    margin: -4px 0;"      // Reduced from -5px 0
                       "}"
                       "QTreeWidget {"
                       "    background-color: %8;"
                       "    color: %2;"
                       "    border: 1px solid %3;"
-                      "    border-radius: 4px;"
-                      "    font-size: 10pt;"
+                      "    border-radius: 3px;"
+                      "    font-size: 8pt;"      // Reduced from 10pt
                       "}"
                       "QProgressBar {"
                       "    border: 1px solid %3;"
-                      "    border-radius: 4px;"
+                      "    border-radius: 3px;"
                       "    background-color: %8;"
+                      "    height: 16px;"        // Added smaller height
                       "}"
                       "QProgressBar::chunk {"
                       "    background-color: %4;"
@@ -887,46 +1051,47 @@ void MainWindow::applyWJStyling() {
                       ).arg(BACKGROUND_COLOR, TEXT_COLOR, PRIMARY_COLOR, ACCENT_COLOR,
                            SUCCESS_COLOR, WARNING_COLOR, DANGER_COLOR, SURFACE_COLOR));
 
-    // Special styling for diagnostic buttons by module
+    // ... keep existing button styling but with smaller minimum widths ...
     QString engineButtonStyle = QString(
                                     "QPushButton {"
                                     "    background-color: %1;"
-                                    "    min-width: 140px;"
+                                    "    min-width: 80px;"  // Reduced from 140px
                                     "}"
                                     ).arg(SUCCESS_COLOR);
 
+    // Apply similar reductions to other button styles...
     QString transmissionButtonStyle = QString(
                                           "QPushButton {"
                                           "    background-color: %1;"
-                                          "    min-width: 140px;"
+                                          "    min-width: 80px;"
                                           "}"
-                                          ).arg("#8B5A2B"); // Brown for transmission
+                                          ).arg("#8B5A2B");
 
     QString pcmButtonStyle = QString(
                                  "QPushButton {"
                                  "    background-color: %1;"
-                                 "    min-width: 140px;"
+                                 "    min-width: 80px;"
                                  "}"
-                                 ).arg("#6B46C1"); // Purple for PCM
+                                 ).arg("#6B46C1");
 
     QString absButtonStyle = QString(
                                  "QPushButton {"
                                  "    background-color: %1;"
-                                 "    min-width: 140px;"
+                                 "    min-width: 80px;"
                                  "}"
-                                 ).arg("#DC2626"); // Red for ABS
+                                 ).arg("#DC2626");
 
     QString faultButtonStyle = QString(
                                    "QPushButton {"
                                    "    background-color: %1;"
-                                   "    min-width: 140px;"
+                                   "    min-width: 80px;"
                                    "}"
                                    ).arg(WARNING_COLOR);
 
     QString clearFaultButtonStyle = QString(
                                         "QPushButton {"
                                         "    background-color: %1;"
-                                        "    min-width: 140px;"
+                                        "    min-width: 80px;"
                                         "}"
                                         ).arg(DANGER_COLOR);
 
@@ -986,7 +1151,6 @@ void MainWindow::applyWJStyling() {
                                      "QPushButton {"
                                      "    background-color: %1;"
                                      "    font-size: 12pt;"
-                                     "    min-width: 150px;"
                                      "}"
                                      ).arg(SUCCESS_COLOR));
 }
@@ -1054,8 +1218,6 @@ void MainWindow::onBluetoothDeviceFound(const QString& name, const QString& addr
 
     // Always auto-select the latest found device
     bluetoothDevicesCombo->setCurrentIndex(index);
-    logWJData("→ Auto-selected device: " + name + " (" + address + ")");
-
     // Display in terminal
     logWJData("→ Found device: " + name + " (" + address + ")");
 
@@ -1227,6 +1389,11 @@ bool MainWindow::switchToProtocol(WJProtocol protocol) {
     }
 
     protocolSwitchingInProgress = false;
+    currentProtocol = protocol;
+    currentProtocolLabel->setText("Current: " + WJUtils::getProtocolName(protocol));
+
+    logWJData(QString("✓ Protocol switched to: %1")
+                  .arg(WJUtils::getProtocolName(protocol)));
     return true;
 }
 
@@ -1241,15 +1408,55 @@ bool MainWindow::switchToModule(WJModule module) {
         return false;
     }
 
-    // Get module initialization commands
-    QList<WJCommand> moduleCommands = WJCommands::getModuleInitCommands(module);
-
-    for (const WJCommand& cmd : moduleCommands) {
-        sendWJCommand(cmd.command, module);
-        QThread::msleep(cmd.timeoutMs / 20); // Short delay
-    }
-
     currentModule = module;
+    currentModuleLabel->setText("Current: " + WJUtils::getModuleName(module));
+
+    try {
+        // Get module initialization commands with null check
+        QList<WJCommand> moduleCommands;
+
+        // Check if the module is valid before getting commands
+        if (module == MODULE_UNKNOWN) {
+            logWJData("⚠️ Invalid module - skipping module commands");
+        } else {
+            moduleCommands = WJCommands::getModuleInitCommands(module);
+        }
+
+        if (!moduleCommands.isEmpty()) {
+            // Execute commands with additional safety checks
+            for (int i = 0; i < moduleCommands.size(); ++i) {
+                const WJCommand& cmd = moduleCommands[i];
+
+                // Check if command is valid before sending
+                if (cmd.command.isEmpty()) {
+                    logWJData(QString("⚠️ Skipping empty command at index %1").arg(i));
+                    continue;
+                }
+
+                // Check if still connected before each command
+                if (!connected || !connectionManager) {
+                    logWJData("❌ Connection lost during module switch");
+                    return false;
+                }
+
+                sendWJCommand(cmd.command, module);
+
+                // Safer delay with bounds checking
+                int delayMs = qMax(10, cmd.timeoutMs / 20); // Minimum 10ms delay
+                QThread::msleep(delayMs);
+            }
+        } else {
+            logWJData("→ No module-specific commands to execute");
+        }
+        return true;
+
+    } catch (const std::exception& e) {
+        logWJData(QString("❌ Exception during module switch: %1").arg(e.what()));
+        return false;
+    } catch (...) {
+        logWJData("❌ Unknown exception during module switch");
+        return false;
+    }
     return true;
 }
 
@@ -1465,16 +1672,16 @@ bool MainWindow::initializeWJCommunication() {
 
 void MainWindow::processWJInitResponse(const QString& response) {
     if (currentInitStep >= initializationCommands.size()) {
-        // Initialization complete
+        // Initialization complete - even with some errors
         currentInitState = STATE_READY_ISO9141;
         initialized = true;
-        connectionStatusLabel->setText("Status: Ready (Multi-Protocol)");
+        connectionStatusLabel->setText("Status: Ready (May have limited access)");
 
-        logWJData("✓ WJ multi-protocol initialization completed!");
+        logWJData("✓ WJ initialization completed (with some limitations)!");
         logWJData(QString("→ Engine security access: %1").arg(engineSecurityAccessGranted ? "Granted" : "Limited"));
-        logWJData("→ Ready for multi-module diagnostics");
+        logWJData("→ Basic diagnostics available");
 
-        // Enable all diagnostic buttons
+        // Enable diagnostic buttons even with limited access
         enableDisableControlsForModule(MODULE_ENGINE_EDC15, true);
         enableDisableControlsForModule(MODULE_TRANSMISSION, true);
         enableDisableControlsForModule(MODULE_PCM, true);
@@ -1494,10 +1701,10 @@ void MainWindow::processWJInitResponse(const QString& response) {
         currentModule = MODULE_ENGINE_EDC15;
         currentProtocolLabel->setText("Current: " + WJUtils::getProtocolName(currentProtocol));
         currentModuleLabel->setText("Current: " + WJUtils::getModuleName(currentModule));
-        protocolLabel->setText("Protocol: Multi-Protocol Ready");
+        protocolLabel->setText("Protocol: Ready");
 
-        // Test communication with engine
-        QTimer::singleShot(1000, [this]() {
+        // Test basic communication
+        QTimer::singleShot(2000, [this]() {
             onReadEngineBatteryVoltageClicked();
         });
 
@@ -1509,160 +1716,67 @@ void MainWindow::processWJInitResponse(const QString& response) {
     bool responseOK = false;
     bool shouldAdvanceStep = true;
 
-    // Handle delayed "no data" responses that don't belong to current command
-    if ((cleanResponse == "." || cleanResponse.isEmpty()) &&
-        !currentCmd.command.startsWith("27") &&
-        !currentCmd.command.startsWith("31") &&
-        currentCmd.command != "81") {
-        logWJData("← Delayed response ignored: " + (cleanResponse.isEmpty() ? "empty" : cleanResponse));
-        return; // Don't advance to next command
-    }
+    // Handle errors more gracefully
+    if (isWJError(cleanResponse)) {
+        if (currentCmd.isCritical) {
+            // Critical command failed
+            logWJData("❌ Critical command failed: " + currentCmd.command + " - " + cleanResponse);
 
-    // Handle STOPPED errors first
-    if (isWJError(cleanResponse) && cleanResponse.contains("STOPPED")) {
-        logWJData("❌ ECU rejected command: " + currentCmd.command + " - " + cleanResponse);
-
-        // For security access commands, try to recover
-        if (currentCmd.command.startsWith("27")) {
-            logWJData("→ Security access blocked - continuing with limited access");
-            engineSecurityAccessGranted = false;
-            responseOK = true; // Continue with limited access
-        } else if (currentCmd.command.startsWith("31")) {
-            logWJData("→ Diagnostic routine blocked - continuing anyway");
+            // Don't disconnect, just continue with limited functionality
             responseOK = true; // Continue anyway
         } else {
-            responseOK = false;
+            // Non-critical command failed - just continue
+            logWJData("⚠️ Non-critical command failed: " + currentCmd.command + " - " + cleanResponse);
+            responseOK = true; // Continue
         }
     }
-    // Normal response processing
+    // Handle specific responses
     else if (currentCmd.command == "ATZ") {
         currentInitState = STATE_RESETTING;
         if (cleanResponse.contains("ELM327") || cleanResponse.isEmpty()) {
-            logWJData("✓ ELM327 reset successful: " + (cleanResponse.isEmpty() ? "OK" : cleanResponse));
+            logWJData("✓ ELM327 reset successful");
             responseOK = true;
         }
     }
-    else if (currentCmd.command == "ATE0") {
-        if (cleanResponse.contains("ELM327") || cleanResponse.contains("OK")) {
-            logWJData("✓ Echo off - " + (cleanResponse.isEmpty() ? "OK" : cleanResponse));
-            responseOK = true;
-        }
-    }
-    else if (currentCmd.command == "ATSP3") {
-        currentInitState = STATE_CONFIGURING_PROTOCOL;
-        if (cleanResponse.contains("OK")) {
-            logWJData("✓ Protocol set to ISO 9141-2");
-            responseOK = true;
-        }
-    }
-    else if (currentCmd.command.startsWith("ATWM")) {
-        if (cleanResponse.contains("OK")) {
-            logWJData("✓ Wakeup message configured");
-            responseOK = true;
-        }
-    }
-    else if (currentCmd.command.startsWith("ATSH")) {
-        currentInitState = STATE_SETTING_HEADER;
-        if (cleanResponse.contains("OK")) {
-            logWJData("✓ ECU header set to " + WJ_ECU_HEADER_ENGINE);
-            currentECUHeader = WJ_ECU_HEADER_ENGINE;
-            responseOK = true;
-        }
-    }
-    else if (currentCmd.command == "ATWS" || currentCmd.command == "ATFI") {
-        currentInitState = STATE_FAST_INIT;
-        if (cleanResponse.contains("ELM327") || cleanResponse.contains("BUS INIT") || cleanResponse.contains("OK")) {
-            logWJData("✓ Bus initialization successful: " + cleanResponse);
-            responseOK = true;
-        }
-    }
-    else if (currentCmd.command == "ATDP") {
-        if (cleanResponse.contains("ISO") || cleanResponse.contains("9141")) {
-            logWJData("✓ Protocol verified: " + cleanResponse);
+    else if (currentCmd.command.startsWith("AT")) {
+        if (cleanResponse.contains("OK") || cleanResponse.isEmpty()) {
+            logWJData("✓ " + currentCmd.description);
             responseOK = true;
         }
     }
     else if (currentCmd.command == "81") {
-        currentInitState = STATE_START_COMMUNICATION;
-        if (cleanResponse.contains("BUS INIT") || cleanResponse.contains("C1") || cleanResponse.length() >= 4) {
-            logWJData("✓ Engine communication established: " + cleanResponse);
-            responseOK = true;
-        }
-        // For start communication, ignore delayed "." responses
-        else if (cleanResponse == ".") {
-            logWJData("← Delayed no-data response from start communication");
-            shouldAdvanceStep = false; // Don't advance, wait for real response
-            return;
+        // Start communication - don't require success
+        if (cleanResponse.contains("BUS INIT") || cleanResponse.contains("ERROR")) {
+            logWJData("⚠️ Engine communication attempted: " + cleanResponse);
+            responseOK = true; // Continue even with error
         }
     }
-    else if (currentCmd.command == "27 01") {
-        currentInitState = STATE_SECURITY_ACCESS;
-        if (cleanResponse.contains("67 01") || cleanResponse.startsWith("67")) {
-            logWJData("✓ Security access requested: " + cleanResponse);
-            responseOK = true;
-        } else if (cleanResponse == ".") {
-            logWJData("✓ Security access request sent (no immediate response)");
-            responseOK = true;
-        } else if (cleanResponse.contains("7F")) {
-            logWJData("⚠️ Security access request denied: " + cleanResponse);
-            responseOK = true; // Continue anyway
-        }
+    else if (currentCmd.command.startsWith("27")) {
+        // Security access - don't require success
+        logWJData("⚠️ Security access attempted: " + cleanResponse);
+        responseOK = true; // Continue regardless
+        engineSecurityAccessGranted = cleanResponse.contains("67");
     }
-    else if (currentCmd.command == "27 02 CD 46") {
-        if (cleanResponse.contains("67 02")) {
-            logWJData("✓ Security access granted: " + cleanResponse);
-            engineSecurityAccessGranted = true;
-            responseOK = true;
-        } else if (cleanResponse.contains("7F 27")) {
-            logWJData("⚠️ Security access denied (expected): " + cleanResponse);
-            engineSecurityAccessGranted = false;
-            responseOK = true; // This is often expected
-        } else if (cleanResponse.contains("BUS INIT") || cleanResponse == ".") {
-            logWJData("⚠️ Security access response: " + (cleanResponse == "." ? "No data" : cleanResponse));
-            engineSecurityAccessGranted = false;
-            responseOK = true; // Continue anyway
-        }
-    }
-    else if (currentCmd.command == "31 25 00") {
-        currentInitState = STATE_DIAGNOSTIC_ROUTINE;
-        if (cleanResponse.contains("71 25") || cleanResponse.startsWith("71")) {
-            logWJData("✓ Diagnostic routine started: " + cleanResponse);
-            responseOK = true;
-        } else if (cleanResponse == ".") {
-            logWJData("✓ Diagnostic routine sent (no immediate response)");
-            responseOK = true;
-        } else if (cleanResponse.contains("7F")) {
-            logWJData("⚠️ Diagnostic routine denied: " + cleanResponse);
-            responseOK = true; // Continue anyway
-        }
+    else if (currentCmd.command.startsWith("31")) {
+        // Diagnostic routine - don't require success
+        logWJData("⚠️ Diagnostic routine attempted: " + cleanResponse);
+        responseOK = true; // Continue regardless
     }
     else {
-        // Standard commands expecting OK
-        if (cleanResponse.contains("OK") || cleanResponse.isEmpty()) {
-            logWJData("✓ " + currentCmd.description + " - OK");
-            responseOK = true;
-        }
+        // Other commands
+        logWJData("→ " + currentCmd.description + ": " + cleanResponse);
+        responseOK = true; // Be permissive
     }
 
-    if (!responseOK && !isWJError(cleanResponse)) {
-        logWJData("⚠️ Unexpected response for " + currentCmd.command + ": " + cleanResponse);
-        // Continue anyway for most commands
-        responseOK = true;
-    }
-
-    // Only advance if we should and response was OK
-    if (shouldAdvanceStep && responseOK) {
-        // Move to next command
+    // Always advance to next step unless explicitly told not to
+    if (shouldAdvanceStep) {
         currentInitStep++;
 
         if (currentInitStep < initializationCommands.size()) {
             const WJCommand& nextCmd = initializationCommands[currentInitStep];
 
-            // Calculate delay - add extra time for critical commands
+            // Use the command's timeout
             int delay = nextCmd.timeoutMs;
-            if (nextCmd.command.startsWith("27") || nextCmd.command.startsWith("31")) {
-                delay += 1000; // Extra delay for security/diagnostic commands
-            }
 
             QTimer::singleShot(delay, [this, nextCmd]() {
                 if (connected && connectionManager) {
@@ -1672,22 +1786,37 @@ void MainWindow::processWJInitResponse(const QString& response) {
                 }
             });
         }
-    } else if (!shouldAdvanceStep) {
-        // Log that we're waiting for the real response
-        logWJData("→ Waiting for response to: " + currentCmd.command);
     }
 }
 
 void MainWindow::onInitializationTimeout() {
-    logWJData("❌ WJ initialization timeout");
-    logWJData("→ Current state: " + QString::number(currentInitState));
-    logWJData("→ Current step: " + QString::number(currentInitStep));
+    logWJData("⚠️ WJ initialization timeout - continuing with basic functionality");
 
-    if (currentInitStep < initializationCommands.size()) {
-        logWJData("→ Failed at: " + initializationCommands[currentInitStep].command);
-    }
+    // Don't disconnect! Just mark as partially initialized
+    initialized = true;
+    currentInitState = STATE_READY_ISO9141;
 
-    disconnectFromWJ();
+    connectionStatusLabel->setText("Status: Ready (Limited)");
+    protocolLabel->setText("Protocol: Basic Mode");
+
+    // Enable basic functionality
+    enableDisableControlsForModule(MODULE_ENGINE_EDC15, true);
+    sendCommandButton->setEnabled(true);
+
+    logWJData("→ Basic diagnostics available");
+
+    // Set basic state
+    currentProtocol = PROTOCOL_ISO9141_2;
+    currentModule = MODULE_ENGINE_EDC15;
+    currentProtocolLabel->setText("Current: ISO 9141-2");
+    currentModuleLabel->setText("Current: Engine (Limited)");
+
+    // Enable multi-module buttons
+    readAllModuleFaultCodesButton->setEnabled(true);
+    clearAllModuleFaultCodesButton->setEnabled(true);
+    readAllSensorDataButton->setEnabled(true);
+    sendCommandButton->setEnabled(true);
+    switchProtocolButton->setEnabled(true);
 }
 
 void MainWindow::sendWJCommand(const QString& command, WJModule targetModule) {
@@ -1697,12 +1826,11 @@ void MainWindow::sendWJCommand(const QString& command, WJModule targetModule) {
 
     QString cleanCommand = cleanWJData(command);
 
-    // Switch to target module if specified
+     // Only log a warning if there's a module mismatch, don't try to fix it
     if (targetModule != MODULE_UNKNOWN && targetModule != currentModule) {
-        if (!switchToModule(targetModule)) {
-            logWJData("❌ Failed to switch to target module");
-            return;
-        }
+        logWJData(QString("⚠️ Module mismatch: current=%1, target=%2 (continuing anyway)")
+                      .arg(WJUtils::getModuleName(currentModule))
+                      .arg(WJUtils::getModuleName(targetModule)));
     }
 
     // Set appropriate ECU header based on current module
@@ -1722,13 +1850,54 @@ void MainWindow::onDataReceived(const QString& data) {
         return;
     }
 
-    // Clean the data
-    QString cleanData = data;
+    // Add to buffer
+    dataBuffer += data;
+
+    // Handle different line endings (\n, \r\n, \r)
+    dataBuffer.replace("\r\n", "\n"); // Windows style
+    dataBuffer.replace("\r", "\n");   // Mac style
+
+    // Split by newlines
+    QStringList lines = dataBuffer.split('\n');
+
+    // Keep the last part if it doesn't end with newline
+    if (!dataBuffer.endsWith('\n')) {
+        dataBuffer = lines.takeLast();
+    } else {
+        dataBuffer.clear();
+    }
+
+    // Process each complete line
+    for (const QString& line : lines) {
+        if (!line.trimmed().isEmpty()) {
+            processDataLine(line.trimmed());
+        }
+    }
+
+    // Log buffer status for debugging
+    if (!dataBuffer.isEmpty() && dataBuffer.length() > 100) {
+        qDebug() << "Large buffer without newline:" << dataBuffer.length() << "chars";
+    }
+}
+
+void MainWindow::processDataLine(const QString& line)
+{
+    if (line.isEmpty()) {
+        return;
+    }
+
+    // Clean the line
+    QString cleanData = line;
     cleanData.remove("\r");
     cleanData.remove(">");
     cleanData.remove("?");
     cleanData.remove(QChar(0xFFFD));
     cleanData.remove(QChar(0x00));
+    cleanData = cleanData.trimmed(); // Remove leading/trailing whitespace
+
+    if (cleanData.isEmpty()) {
+        return;
+    }
 
     // Check for errors
     if (isWJError(cleanData)) {
@@ -1750,45 +1919,102 @@ void MainWindow::onDataReceived(const QString& data) {
     }
 }
 
+// void MainWindow::logWJData(const QString& message) {
+
+//     // Filter based on log level
+//     if (currentLogLevel == LOG_MINIMAL) {
+//         // Only show critical events
+//         if (!isImportantMessage(message)) {
+//             return;
+//         }
+//     }
+
+//     QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss");
+//     QString logMessage = QString("[%1] %2").arg(timestamp, message);
+
+//     terminalDisplay->append(logMessage);
+//     terminalDisplay->moveCursor(QTextCursor::End);
+
+//     // Limit terminal content
+//     if (terminalDisplay->document()->blockCount() > 100) { // Reduced from 1000
+//         QTextCursor cursor = terminalDisplay->textCursor();
+//         cursor.movePosition(QTextCursor::Start);
+//         cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, 20);
+//         cursor.removeSelectedText();
+//     }
+// }
+
+void MainWindow::logWJData(const QString& message) {
+    // Debug: Print to console to see all messages
+    qDebug() << "logWJData called with:" << message;
+
+    // Show commands and responses
+    if (message.startsWith("→") ||       // All outgoing commands
+        message.startsWith("←") ||       // All responses
+        message.startsWith("❌")) {      // Errors
+
+        QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss");
+        terminalDisplay->append(QString("[%1] %2").arg(timestamp, message));
+        terminalDisplay->moveCursor(QTextCursor::End);
+    } else {
+        // Debug: Show what's being filtered out
+        qDebug() << "Filtered out:" << message;
+    }
+
+    if (terminalDisplay->document()->blockCount() > 30) {
+        QTextCursor cursor = terminalDisplay->textCursor();
+        cursor.movePosition(QTextCursor::Start);
+        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, 5);
+        cursor.removeSelectedText();
+    }
+}
+
 void MainWindow::parseWJResponse(const QString& response) {
     QString cleanResponse = cleanWJData(response);
 
-    // Determine which module's data this is based on current module and response format
-    switch (currentModule) {
-        case MODULE_ENGINE_EDC15:
-            parseEngineData(cleanResponse);
-            break;
-        case MODULE_TRANSMISSION:
-            parseTransmissionData(cleanResponse);
-            break;
-        case MODULE_PCM:
-            parsePCMData(cleanResponse);
-            break;
-        case MODULE_ABS:
-            parseABSData(cleanResponse);
-            break;
-        default:
-            // Try to determine from response format
-            if (cleanResponse.startsWith("61 20") || cleanResponse.startsWith("61 12") ||
-                cleanResponse.startsWith("61 28") || cleanResponse.startsWith("C1")) {
-                parseEngineData(cleanResponse);
-            } else if (cleanResponse.startsWith("41")) {
-                // Could be any J1850 module - determine by context
-                if (currentModule == MODULE_TRANSMISSION) parseTransmissionData(cleanResponse);
-                else if (currentModule == MODULE_PCM) parsePCMData(cleanResponse);
-                else if (currentModule == MODULE_ABS) parseABSData(cleanResponse);
-            } else if (cleanResponse.startsWith("43")) {
-                // Fault codes - determine by current module
-                parseFaultCodes(cleanResponse, currentModule);
-            }
-            break;
+    if (cleanResponse.isEmpty()) {
+        return; // Don't process empty responses
     }
 
-    // Update displays
-    updateSensorDisplays();
-}
+    // Determine which module's data this is based on current module and response format
+    switch (currentModule) {
+    case MODULE_ENGINE_EDC15:
+        parseEngineData(cleanResponse);
+        break;
+    case MODULE_TRANSMISSION:
+        parseTransmissionData(cleanResponse);
+        break;
+    case MODULE_PCM:
+        parsePCMData(cleanResponse);
+        break;
+    case MODULE_ABS:
+        parseABSData(cleanResponse);
+        break;
+    default:
+        // Try to determine from response format
+        if (cleanResponse.startsWith("61 20") || cleanResponse.startsWith("61 12") ||
+            cleanResponse.startsWith("61 28") || cleanResponse.startsWith("C1")) {
+            parseEngineData(cleanResponse);
+        } else if (cleanResponse.startsWith("41")) {
+            // Could be any J1850 module - determine by context
+            if (currentModule == MODULE_TRANSMISSION) parseTransmissionData(cleanResponse);
+            else if (currentModule == MODULE_PCM) parsePCMData(cleanResponse);
+            else if (currentModule == MODULE_ABS) parseABSData(cleanResponse);
+        } else if (cleanResponse.startsWith("43")) {
+            // Fault codes - determine by current module
+            parseFaultCodes(cleanResponse, currentModule);
+        }
+        break;
+    }
 
-// Missing functions implementation for MainWindow.cpp
+    // Update displays with safety check
+    try {
+        updateSensorDisplays();
+    } catch (...) {
+        // Log error but don't crash
+        logWJData("❌ Error updating sensor displays");
+    }
+}
 
 // Engine Diagnostic Commands (ISO 9141-2)
 void MainWindow::onReadEngineMAFClicked() {
@@ -2500,20 +2726,64 @@ bool MainWindow::validateWJResponse(const QString& response, const QString& expe
     return response.trimmed().toUpper().startsWith(expectedStart.toUpper());
 }
 
-void MainWindow::logWJData(const QString& message) {
-    QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
-    QString logMessage = QString("[%1] %2").arg(timestamp, message);
+bool MainWindow::isImportantMessage(const QString& message)
+{
+    // Only show these types of messages in minimal mode:
 
-    terminalDisplay->append(logMessage);
-    terminalDisplay->moveCursor(QTextCursor::End);
-
-    // Limit terminal content to prevent memory issues
-    if (terminalDisplay->document()->blockCount() > 1000) {
-        QTextCursor cursor = terminalDisplay->textCursor();
-        cursor.movePosition(QTextCursor::Start);
-        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, 100);
-        cursor.removeSelectedText();
+    // Connection events
+    if (message.contains("Physical connection established") ||
+        message.contains("Disconnected") ||
+        message.contains("Connection failed")) {
+        return true;
     }
+
+    // Initialization complete
+    if (message.contains("WJ multi-protocol initialization completed") ||
+        message.contains("Ready for multi-module diagnostics")) {
+        return true;
+    }
+
+    // Module switches (only the result)
+    if (message.contains("Successfully switched to module") ||
+        message.contains("✓ Switched to module")) {
+        return true;
+    }
+
+    // Protocol switches (only the result)
+    if (message.contains("✓ Protocol switched to")) {
+        return true;
+    }
+
+    // Errors
+    if (message.startsWith("❌") || message.contains("Error") || message.contains("Failed")) {
+        return true;
+    }
+
+    // Critical warnings
+    if (message.startsWith("⚠️") && (message.contains("Security") || message.contains("Critical"))) {
+        return true;
+    }
+
+    // Data reading results (sensor values)
+    if (message.contains("Battery:") ||
+        message.contains("RPM:") ||
+        message.contains("Temperature:") ||
+        message.contains("Pressure:")) {
+        return true;
+    }
+
+    // Fault codes
+    if (message.contains("fault code") || message.contains("DTC")) {
+        return true;
+    }
+
+    // App startup/shutdown
+    if (message.contains("Enhanced Jeep WJ Diagnostic Tool Initialized") ||
+        message.contains("Exiting application")) {
+        return true;
+    }
+
+    return false; // Hide everything else in minimal mode
 }
 
 // Display Update Methods
@@ -2525,62 +2795,152 @@ void MainWindow::updateSensorDisplays() {
 }
 
 void MainWindow::updateEngineDisplay() {
-    if (sensorData.engine.dataValid) {
-        mafActualLabel->setText(formatSensorValue(sensorData.engine.mafActual, "g/s", 1));
-        mafSpecifiedLabel->setText(formatSensorValue(sensorData.engine.mafSpecified, "g/s", 1));
-        railPressureActualLabel->setText(formatSensorValue(sensorData.engine.railPressureActual, "bar", 1));
-        railPressureSpecifiedLabel->setText(formatSensorValue(sensorData.engine.railPressureSpecified, "bar", 1));
-        mapActualLabel->setText(formatSensorValue(sensorData.engine.mapActual, "mbar", 0));
-        mapSpecifiedLabel->setText(formatSensorValue(sensorData.engine.mapSpecified, "mbar", 0));
-        coolantTempLabel->setText(formatSensorValue(sensorData.engine.coolantTemp, "°C", 1));
-        intakeAirTempLabel->setText(formatSensorValue(sensorData.engine.intakeAirTemp, "°C", 1));
-        throttlePositionLabel->setText(formatSensorValue(sensorData.engine.throttlePosition, "%", 1));
-        rpmLabel->setText(formatSensorValue(sensorData.engine.engineRPM, "rpm", 0));
-        injectionQuantityLabel->setText(formatSensorValue(sensorData.engine.injectionQuantity, "mg", 1));
-        batteryVoltageLabel->setText(formatSensorValue(sensorData.engine.batteryVoltage, "V", 2));
+    if (!sensorData.engine.dataValid) {
+        return; // Don't update if no valid data
+    }
 
+    // Add null pointer checks for ALL labels before calling setText()
+    if (mafActualLabel) {
+        mafActualLabel->setText(formatSensorValue(sensorData.engine.mafActual, "g/s", 1));
+    }
+    if (mafSpecifiedLabel) {
+        mafSpecifiedLabel->setText(formatSensorValue(sensorData.engine.mafSpecified, "g/s", 1));
+    }
+    if (railPressureActualLabel) {
+        railPressureActualLabel->setText(formatSensorValue(sensorData.engine.railPressureActual, "bar", 1));
+    }
+    if (railPressureSpecifiedLabel) {
+        railPressureSpecifiedLabel->setText(formatSensorValue(sensorData.engine.railPressureSpecified, "bar", 1));
+    }
+    if (mapActualLabel) {
+        mapActualLabel->setText(formatSensorValue(sensorData.engine.mapActual, "mbar", 0));
+    }
+    if (mapSpecifiedLabel) {
+        mapSpecifiedLabel->setText(formatSensorValue(sensorData.engine.mapSpecified, "mbar", 0));
+    }
+    if (coolantTempLabel) {
+        coolantTempLabel->setText(formatSensorValue(sensorData.engine.coolantTemp, "°C", 1));
+    }
+    if (intakeAirTempLabel) {
+        intakeAirTempLabel->setText(formatSensorValue(sensorData.engine.intakeAirTemp, "°C", 1));
+    }
+    if (throttlePositionLabel) {
+        throttlePositionLabel->setText(formatSensorValue(sensorData.engine.throttlePosition, "%", 1));
+    }
+    if (rpmLabel) {
+        rpmLabel->setText(formatSensorValue(sensorData.engine.engineRPM, "rpm", 0));
+    }
+    if (injectionQuantityLabel) {
+        injectionQuantityLabel->setText(formatSensorValue(sensorData.engine.injectionQuantity, "mg", 1));
+    }
+    if (batteryVoltageLabel) {
+        batteryVoltageLabel->setText(formatSensorValue(sensorData.engine.batteryVoltage, "V", 2));
+    }
+
+    if (injector1Label) {
         injector1Label->setText(formatSensorValue(sensorData.engine.injector1Correction, "mg", 2));
+    }
+    if (injector2Label) {
         injector2Label->setText(formatSensorValue(sensorData.engine.injector2Correction, "mg", 2));
+    }
+    if (injector3Label) {
         injector3Label->setText(formatSensorValue(sensorData.engine.injector3Correction, "mg", 2));
+    }
+    if (injector4Label) {
         injector4Label->setText(formatSensorValue(sensorData.engine.injector4Correction, "mg", 2));
+    }
+    if (injector5Label) {
         injector5Label->setText(formatSensorValue(sensorData.engine.injector5Correction, "mg", 2));
     }
 }
 
+// Similarly, add null checks to other update functions
 void MainWindow::updateTransmissionDisplay() {
-    if (sensorData.transmission.dataValid) {
+    if (!sensorData.transmission.dataValid) {
+        return;
+    }
+
+    if (transOilTempLabel) {
         transOilTempLabel->setText(formatSensorValue(sensorData.transmission.oilTemp, "°C", 1));
+    }
+    if (transInputSpeedLabel) {
         transInputSpeedLabel->setText(formatSensorValue(sensorData.transmission.inputSpeed, "rpm", 0));
+    }
+    if (transOutputSpeedLabel) {
         transOutputSpeedLabel->setText(formatSensorValue(sensorData.transmission.outputSpeed, "rpm", 0));
+    }
+    if (transCurrentGearLabel) {
         transCurrentGearLabel->setText(formatSensorValue(sensorData.transmission.currentGear, "", 0));
+    }
+    if (transLinePressureLabel) {
         transLinePressureLabel->setText(formatSensorValue(sensorData.transmission.linePresssure, "psi", 1));
+    }
+    if (transSolenoidALabel) {
         transSolenoidALabel->setText(formatSensorValue(sensorData.transmission.shiftSolenoidA, "%", 1));
+    }
+    if (transSolenoidBLabel) {
         transSolenoidBLabel->setText(formatSensorValue(sensorData.transmission.shiftSolenoidB, "%", 1));
+    }
+    if (transTCCSolenoidLabel) {
         transTCCSolenoidLabel->setText(formatSensorValue(sensorData.transmission.tccSolenoid, "%", 1));
+    }
+    if (transTorqueConverterLabel) {
         transTorqueConverterLabel->setText(formatSensorValue(sensorData.transmission.torqueConverter, "%", 1));
     }
 }
 
 void MainWindow::updatePCMDisplay() {
-    if (sensorData.pcm.dataValid) {
+    if (!sensorData.pcm.dataValid) {
+        return;
+    }
+
+    if (vehicleSpeedLabel) {
         vehicleSpeedLabel->setText(formatSensorValue(sensorData.pcm.vehicleSpeed, "km/h", 0));
+    }
+    if (engineLoadLabel) {
         engineLoadLabel->setText(formatSensorValue(sensorData.pcm.engineLoad, "%", 1));
+    }
+    if (fuelTrimSTLabel) {
         fuelTrimSTLabel->setText(formatSensorValue(sensorData.pcm.fuelTrimST, "%", 2));
+    }
+    if (fuelTrimLTLabel) {
         fuelTrimLTLabel->setText(formatSensorValue(sensorData.pcm.fuelTrimLT, "%", 2));
+    }
+    if (o2Sensor1Label) {
         o2Sensor1Label->setText(formatSensorValue(sensorData.pcm.o2Sensor1, "V", 3));
+    }
+    if (o2Sensor2Label) {
         o2Sensor2Label->setText(formatSensorValue(sensorData.pcm.o2Sensor2, "V", 3));
+    }
+    if (timingAdvanceLabel) {
         timingAdvanceLabel->setText(formatSensorValue(sensorData.pcm.timingAdvance, "°", 1));
+    }
+    if (barometricPressureLabel) {
         barometricPressureLabel->setText(formatSensorValue(sensorData.pcm.barometricPressure, "kPa", 1));
     }
 }
 
 void MainWindow::updateABSDisplay() {
-    if (sensorData.abs.dataValid) {
+    if (!sensorData.abs.dataValid) {
+        return;
+    }
+
+    if (wheelSpeedFLLabel) {
         wheelSpeedFLLabel->setText(formatSensorValue(sensorData.abs.wheelSpeedFL, "km/h", 1));
+    }
+    if (wheelSpeedFRLabel) {
         wheelSpeedFRLabel->setText(formatSensorValue(sensorData.abs.wheelSpeedFR, "km/h", 1));
+    }
+    if (wheelSpeedRLLabel) {
         wheelSpeedRLLabel->setText(formatSensorValue(sensorData.abs.wheelSpeedRL, "km/h", 1));
+    }
+    if (wheelSpeedRRLabel) {
         wheelSpeedRRLabel->setText(formatSensorValue(sensorData.abs.wheelSpeedRR, "km/h", 1));
+    }
+    if (yawRateLabel) {
         yawRateLabel->setText(formatSensorValue(sensorData.abs.yawRate, "deg/s", 2));
+    }
+    if (lateralAccelLabel) {
         lateralAccelLabel->setText(formatSensorValue(sensorData.abs.lateralAccel, "g", 3));
     }
 }

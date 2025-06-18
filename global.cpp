@@ -196,41 +196,52 @@ namespace WJ {
 // Enhanced command sequences for both protocols
 namespace WJCommands {
 
-QList<WJCommand> getInitSequence(WJProtocol protocol) {
+QList<WJCommand> WJCommands::getInitSequence(WJProtocol protocol) {
     QList<WJCommand> commands;
+
     if (protocol == PROTOCOL_ISO9141_2) {
         // Engine (EDC15) initialization sequence - ISO 9141-2
-        commands.append(WJCommand("ATZ", "", "Reset ELM327", 7500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATE0", "", "Echo off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATL0", "", "Linefeed off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATH0", "", "Headers off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATS0", "", "Spaces off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATST62", "", "Set timeout", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATSP3", "", "Set protocol ISO 9141-2", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATIB10", "", "Set ISO baud rate to 10400", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATIIA13", "", "Set ISO init address to 0x13", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "", "Set wakeup message", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "", "Set ECU header", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATWS", "", "Warm start - forces 5-baud init", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATDP", "", "Verify protocol", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("81", "", "Start communication", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("27 01", "", "Security access request", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("27 02 CD 46", "", "Security access key", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("31 25 00", "", "Start diagnostic routine", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        // Basic ELM327 setup - these MUST work
+        commands.append(WJCommand("ATZ", "", "Reset ELM327", 5000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATE0", "", "Echo off", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATL0", "", "Linefeed off", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATH0", "", "Headers off", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATS0", "", "Spaces off", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATST62", "", "Set timeout", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+
+        // Protocol setup - important but not critical
+        commands.append(WJCommand("ATSP3", "", "Set protocol ISO 9141-2", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATIB10", "", "Set ISO baud rate to 10400", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATIIA13", "", "Set ISO init address to 0x13", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+
+        // ECU specific setup
+        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "", "Set wakeup message", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "", "Set ECU header", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+
+        // Bus initialization - may fail but continue anyway
+        commands.append(WJCommand("ATWS", "", "Warm start - forces 5-baud init", 4000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATDP", "", "Verify protocol", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+
+        // ECU communication - these often fail but are not critical
+        commands.append(WJCommand("81", "", "Start communication", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("27 01", "", "Security access request", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("27 02 CD 46", "", "Security access key", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("31 25 00", "", "Start diagnostic routine", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
     }
     else if (protocol == PROTOCOL_J1850_VPW) {
         // J1850 VPW initialization for Transmission, PCM, ABS, etc.
-        commands.append(WJCommand("ATZ", "", "Reset ELM327", 7500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
-        commands.append(WJCommand("ATE0", "", "Echo off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATL0", "", "Linefeed off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATH1", "", "Headers on", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATS0", "", "Spaces off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATST32", "", "Set timeout for J1850", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATSP1", "", "Set protocol J1850 VPW", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
-        commands.append(WJCommand("ATIB10", "", "Set baud rate to 10400", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATDP", "", "Verify protocol", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATMA", "", "Monitor all messages", 2000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATZ", "", "Reset ELM327", 5000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
+        commands.append(WJCommand("ATE0", "", "Echo off", 1500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
+        commands.append(WJCommand("ATL0", "", "Linefeed off", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
+        commands.append(WJCommand("ATH1", "", "Headers on", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
+        commands.append(WJCommand("ATS0", "", "Spaces off", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
+        commands.append(WJCommand("ATST32", "", "Set timeout for J1850", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
+        commands.append(WJCommand("ATSP1", "", "Set protocol J1850 VPW", 2000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
+        commands.append(WJCommand("ATIB10", "", "Set baud rate to 10400", 1500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
+        commands.append(WJCommand("ATDP", "", "Verify protocol", 1500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
+        commands.append(WJCommand("ATMA", "", "Monitor all messages", 3000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, false));
     }
+
     return commands;
 }
 
@@ -259,31 +270,35 @@ QList<WJCommand> getProtocolSwitchCommands(WJProtocol fromProtocol, WJProtocol t
     return commands;
 }
 
-QList<WJCommand> getModuleInitCommands(WJModule module) {
+QList<WJCommand> WJCommands::getModuleInitCommands(WJModule module) {
     QList<WJCommand> commands;
     WJProtocol protocol = WJUtils::getProtocolFromModule(module);
 
     switch (module) {
-        case MODULE_ENGINE_EDC15:
-            commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set engine header", 500, protocol, module));
-            commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "OK", "Set engine wakeup", 500, protocol, module));
-            commands.append(WJCommand("ATWS", "OK", "Warm start for engine", 2000, protocol, module));
-            break;
+    case MODULE_ENGINE_EDC15:
+        // Only module-specific commands, NO protocol setup
+        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set engine header", 500, protocol, module));
+        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "OK", "Set engine wakeup", 500, protocol, module));
+        commands.append(WJCommand("ATWS", "BUS INIT", "Warm start for engine", 2000, protocol, module));
+        break;
 
-        case MODULE_TRANSMISSION:
-            commands.append(WJCommand("ATSH" + WJ::Headers::TRANSMISSION, "OK", "Set transmission header", 500, protocol, module));
-            break;
+    case MODULE_TRANSMISSION:
+        // Only module-specific commands, NO protocol setup
+        commands.append(WJCommand("ATSH" + WJ::Headers::TRANSMISSION, "OK", "Set transmission header", 500, protocol, module));
+        break;
 
-        case MODULE_PCM:
-            commands.append(WJCommand("ATSH" + WJ::Headers::PCM, "OK", "Set PCM header", 500, protocol, module));
-            break;
+    case MODULE_PCM:
+        // Only module-specific commands, NO protocol setup
+        commands.append(WJCommand("ATSH" + WJ::Headers::PCM, "OK", "Set PCM header", 500, protocol, module));
+        break;
 
-        case MODULE_ABS:
-            commands.append(WJCommand("ATSH" + WJ::Headers::ABS, "OK", "Set ABS header", 500, protocol, module));
-            break;
+    case MODULE_ABS:
+        // Only module-specific commands, NO protocol setup
+        commands.append(WJCommand("ATSH" + WJ::Headers::ABS, "OK", "Set ABS header", 500, protocol, module));
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return commands;
@@ -1008,7 +1023,7 @@ bool WJDiagnosticSession::switchProtocolIfNeeded(WJModule targetModule) {
     for (const WJCommand& cmd : switchCommands) {
         QString response;
         if (!interface->sendCommandAndWaitResponse(cmd.command, response, targetModule, cmd.timeoutMs)) {
-            if (cmd.critical) {
+            if (cmd.isCritical) {
                 return false;
             }
         }
@@ -1024,7 +1039,7 @@ bool WJDiagnosticSession::initializeModule(WJModule module) {
     for (const WJCommand& cmd : initCommands) {
         QString response;
         if (!interface->sendCommandAndWaitResponse(cmd.command, response, module, cmd.timeoutMs)) {
-            if (cmd.critical) {
+            if (cmd.isCritical) {
                 return false;
             }
         }
@@ -1289,7 +1304,7 @@ QList<ELM327Command> getInitSequence() {
         legacyCmd.expectedResponse = wjCmd.expectedResponse;
         legacyCmd.description = wjCmd.description;
         legacyCmd.timeoutMs = wjCmd.timeoutMs;
-        legacyCmd.critical = wjCmd.critical;
+        legacyCmd.isCritical = wjCmd.isCritical;
         legacyCommands.append(legacyCmd);
     }
 
