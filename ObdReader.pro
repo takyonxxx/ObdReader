@@ -62,6 +62,11 @@ android {
         android/src/org/qtproject/qt/android/bluetooth/QtBluetoothBroadcastReceiver.java
 }
 
+macos {
+    message("macx enabled")
+    QMAKE_INFO_PLIST = ./macos/Info.plist
+}
+
 # Simulator notes (kept as comments for reference)
 # simulator https://github.com/Ircama/ELM327-emulator/releases
 # python -m pip install ELM327-emulator

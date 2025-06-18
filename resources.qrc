@@ -10,5 +10,6 @@
         <file>android/res/xml/qtprovider_paths.xml</file>
         <file>android/AndroidManifest.xml</file>
         <file>android/build.gradle</file>
+        <file>macos/Info.plist</file>
     </qresource>
 </RCC>

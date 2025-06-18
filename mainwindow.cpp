@@ -146,7 +146,7 @@ MainWindow::~MainWindow() {
 
 void MainWindow::setupWJInitializationCommands() {
     // Start with ISO 9141-2 for engine module by default
-    initializationCommands = WJCommands::getInitSequence(PROTOCOL_ISO9141_2);
+    initializationCommands = WJCommands::getInitSequence(PROTOCOL_ISO_14230_4_KWP_FAST);
 }
 
 void MainWindow::initializeSettings() {
@@ -826,7 +826,7 @@ void MainWindow::setupConnections() {
     connect(protocolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int index) {
                 WJProtocol protocol = PROTOCOL_AUTO_DETECT;
-                if (index == 1) protocol = PROTOCOL_ISO9141_2;
+                if (index == 1) protocol = PROTOCOL_ISO_14230_4_KWP_FAST;
                 else if (index == 2) protocol = PROTOCOL_J1850_VPW;
                 onProtocolSwitchRequested(protocol);
             });
@@ -838,7 +838,7 @@ void MainWindow::setupConnections() {
     connect(switchProtocolButton, &QPushButton::clicked, this, [this]() {
         int index = protocolCombo->currentIndex();
         WJProtocol protocol = PROTOCOL_AUTO_DETECT;
-        if (index == 1) protocol = PROTOCOL_ISO9141_2;
+        if (index == 1) protocol = PROTOCOL_ISO_14230_4_KWP_FAST;
         else if (index == 2) protocol = PROTOCOL_J1850_VPW;
         onProtocolSwitchRequested(protocol);
     });
@@ -921,7 +921,7 @@ void MainWindow::applyWJStyling() {
     const QString BACKGROUND_COLOR = "#0F172A";
     const QString SURFACE_COLOR = "#1E293B";
 
-    // Main window style with smaller fonts
+    // Apply stylesheet ONCE with all arguments
     setStyleSheet(QString(
                       "QMainWindow {"
                       "    background-color: %1;"
@@ -930,16 +930,16 @@ void MainWindow::applyWJStyling() {
                       "QLabel {"
                       "    color: %2;"
                       "    font-weight: bold;"
-                      "    font-size: 9pt;"  // Reduced from 12pt
+                      "    font-size: 9pt;"
                       "}"
                       "QPushButton {"
                       "    background-color: %3;"
                       "    color: %2;"
                       "    border: 1px solid %4;"
-                      "    border-radius: 4px;"  // Reduced from 6px
-                      "    padding: 4px 8px;"   // Reduced from 8px 16px
+                      "    border-radius: 4px;"
+                      "    padding: 4px 8px;"
                       "    font-weight: bold;"
-                      "    font-size: 9pt;"     // Reduced from 11pt
+                      "    font-size: 9pt;"
                       "}"
                       "QPushButton:hover {"
                       "    background-color: %4;"
@@ -955,17 +955,17 @@ void MainWindow::applyWJStyling() {
                       "    background-color: %8;"
                       "    color: %2;"
                       "    border: 1px solid %3;"
-                      "    border-radius: 3px;"  // Reduced from 4px
-                      "    padding: 4px;"       // Reduced from 8px
-                      "    font-size: 9pt;"     // Reduced from 11pt
+                      "    border-radius: 3px;"
+                      "    padding: 4px;"
+                      "    font-size: 9pt;"
                       "}"
                       "QComboBox::drop-down {"
                       "    border: none;"
-                      "    width: 20px;"        // Reduced from 30px
+                      "    width: 20px;"
                       "}"
                       "QComboBox::down-arrow {"
-                      "    width: 12px;"        // Reduced from 16px
-                      "    height: 12px;"       // Reduced from 16px
+                      "    width: 12px;"
+                      "    height: 12px;"
                       "}"
                       "QComboBox QAbstractItemView {"
                       "    background-color: %8;"
@@ -973,7 +973,7 @@ void MainWindow::applyWJStyling() {
                       "    border-radius: 4px;"
                       "    selection-background-color: %3;"
                       "    color: %2;"
-                      "    padding: 2px;"       // Reduced from 4px
+                      "    padding: 2px;"
                       "    font-size: 9pt;"
                       "}"
                       "QTextBrowser {"
@@ -982,67 +982,67 @@ void MainWindow::applyWJStyling() {
                       "    border: 1px solid %3;"
                       "    border-radius: 3px;"
                       "    font-family: 'Consolas', monospace;"
-                      "    font-size: 8pt;"     // Reduced from 10pt
+                      "    font-size: 8pt;"
                       "}"
                       "QGroupBox {"
                       "    font-weight: bold;"
-                      "    font-size: 9pt;"     // Added smaller font
-                      "    border: 1px solid %3;"  // Reduced from 2px
-                      "    border-radius: 4px;"    // Reduced from 8px
-                      "    margin-top: 0.5ex;"     // Reduced from 1ex
-                      "    padding-top: 5px;"      // Reduced from 10px
+                      "    font-size: 9pt;"
+                      "    border: 1px solid %3;"
+                      "    border-radius: 4px;"
+                      "    margin-top: 0.5ex;"
+                      "    padding-top: 5px;"
                       "}"
                       "QGroupBox::title {"
                       "    subcontrol-origin: margin;"
-                      "    left: 5px;"          // Reduced from 10px
-                      "    padding: 0 3px 0 3px;"  // Reduced from 5px
+                      "    left: 5px;"
+                      "    padding: 0 3px 0 3px;"
                       "}"
                       "QTabWidget::pane {"
                       "    border: 1px solid %3;"
-                      "    border-radius: 3px;"  // Reduced from 4px
+                      "    border-radius: 3px;"
                       "}"
                       "QTabBar::tab {"
                       "    background-color: %8;"
                       "    color: %2;"
-                      "    padding: 4px 8px;"    // Reduced from 8px 16px
-                      "    margin-right: 1px;"   // Reduced from 2px
-                      "    border-top-left-radius: 3px;"   // Reduced from 4px
-                      "    border-top-right-radius: 3px;"  // Reduced from 4px
-                      "    font-size: 9pt;"      // Added smaller font
+                      "    padding: 4px 8px;"
+                      "    margin-right: 1px;"
+                      "    border-top-left-radius: 3px;"
+                      "    border-top-right-radius: 3px;"
+                      "    font-size: 9pt;"
                       "}"
                       "QTabBar::tab:selected {"
                       "    background-color: %3;"
                       "}"
                       "QCheckBox {"
                       "    font-weight: bold;"
-                      "    font-size: 9pt;"      // Reduced from 11pt
+                      "    font-size: 9pt;"
                       "}"
                       "QSlider::groove:horizontal {"
                       "    border: 1px solid %3;"
-                      "    height: 6px;"         // Reduced from 8px
+                      "    height: 6px;"
                       "    background: %8;"
-                      "    border-radius: 3px;"  // Reduced from 4px
+                      "    border-radius: 3px;"
                       "}"
                       "QSlider::handle:horizontal {"
                       "    background: %4;"
                       "    border: 1px solid %3;"
-                      "    width: 14px;"         // Reduced from 18px
-                      "    height: 14px;"        // Reduced from 18px
-                      "    border-radius: 7px;"  // Reduced from 9px
-                      "    margin: -4px 0;"      // Reduced from -5px 0
+                      "    width: 14px;"
+                      "    height: 14px;"
+                      "    border-radius: 7px;"
+                      "    margin: -4px 0;"
                       "}"
                       "QTreeWidget {"
                       "    background-color: %8;"
                       "    color: %2;"
                       "    border: 1px solid %3;"
                       "    border-radius: 3px;"
-                      "    font-size: 8pt;"      // Reduced from 10pt
+                      "    font-size: 8pt;"
                       "}"
                       "QProgressBar {"
                       "    border: 1px solid %3;"
                       "    border-radius: 3px;"
                       "    background-color: %8;"
-                      "    height: 16px;"        // Added smaller height
+                      "    height: 16px;"
                       "}"
                       "QProgressBar::chunk {"
                       "    background-color: %4;"
@@ -1354,9 +1354,9 @@ void MainWindow::onAutoDetectProtocolClicked() {
     logWJData("→ Auto-detecting available protocols...");
 
     // Try ISO 9141-2 first (engine)
-    if (switchToProtocol(PROTOCOL_ISO9141_2)) {
+    if (switchToProtocol(PROTOCOL_ISO_14230_4_KWP_FAST)) {
         logWJData("✓ ISO 9141-2 protocol detected and available");
-        currentProtocol = PROTOCOL_ISO9141_2;
+        currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
         protocolCombo->setCurrentIndex(1);
     }
 
@@ -1697,7 +1697,7 @@ void MainWindow::processWJInitResponse(const QString& response) {
         initializationTimer->stop();
 
         // Set initial protocol and module
-        currentProtocol = PROTOCOL_ISO9141_2;
+        currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
         currentModule = MODULE_ENGINE_EDC15;
         currentProtocolLabel->setText("Current: " + WJUtils::getProtocolName(currentProtocol));
         currentModuleLabel->setText("Current: " + WJUtils::getModuleName(currentModule));
@@ -1806,7 +1806,7 @@ void MainWindow::onInitializationTimeout() {
     logWJData("→ Basic diagnostics available");
 
     // Set basic state
-    currentProtocol = PROTOCOL_ISO9141_2;
+    currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
     currentModule = MODULE_ENGINE_EDC15;
     currentProtocolLabel->setText("Current: ISO 9141-2");
     currentModuleLabel->setText("Current: Engine (Limited)");

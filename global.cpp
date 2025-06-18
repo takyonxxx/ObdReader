@@ -89,7 +89,7 @@ namespace WJ {
 
     // Protocol configurations
     namespace Protocols {
-        const QString ISO9141_2 = "3";            // ELM327 protocol 3
+        const QString ISO_14230_4_KWP_FAST = "5";            // ELM327 protocol 5
         const QString J1850_VPW = "1";            // ELM327 protocol 1
         const int ISO_BAUD_RATE = 10400;
         const int J1850_BAUD_RATE = 10400;
@@ -193,40 +193,49 @@ namespace WJ {
     };
 }
 
+// QStringList initializeStandartCommands = {
+//     LINEFEED_OFF,          // ATL0 - Turn off linefeed
+//     ECHO_OFF,              // ATE0 - Turn off echo
+//     HEADERS_OFF,           // ATH0 - Turn off headers
+//     ADAPTIF_TIMING_AUTO2,  // ATAT2 - Adaptive timing
+//     ROTOCOL_ISO_14230_4_KWP_FAST,   // ATSP5 - Set protocol to ISO 9141-2
+//     MONITOR_STATUS         // ATMA - Monitor all
+// };
+
 // Enhanced command sequences for both protocols
 namespace WJCommands {
 
 QList<WJCommand> WJCommands::getInitSequence(WJProtocol protocol) {
     QList<WJCommand> commands;
 
-    if (protocol == PROTOCOL_ISO9141_2) {
+    if (protocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
         // Engine (EDC15) initialization sequence - ISO 9141-2
         // Basic ELM327 setup - these MUST work
-        commands.append(WJCommand("ATZ", "", "Reset ELM327", 5000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATE0", "", "Echo off", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATL0", "", "Linefeed off", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATH0", "", "Headers off", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATS0", "", "Spaces off", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATST62", "", "Set timeout", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATZ", "", "Reset ELM327", 5000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATE0", "", "Echo off", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATL0", "", "Linefeed off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATH0", "", "Headers off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATS0", "", "Spaces off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATST62", "", "Set timeout", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
 
         // Protocol setup - important but not critical
-        commands.append(WJCommand("ATSP3", "", "Set protocol ISO 9141-2", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATIB10", "", "Set ISO baud rate to 10400", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATIIA13", "", "Set ISO init address to 0x13", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATSP5", "", "Set protocol ISO_14230_4_KWP_FAST", 2000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATIB10", "", "Set ISO baud rate to 10400", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATIIA13", "", "Set ISO init address to 0x13", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
 
         // ECU specific setup
-        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "", "Set wakeup message", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "", "Set ECU header", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "", "Set wakeup message", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "", "Set ECU header", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
 
         // Bus initialization - may fail but continue anyway
-        commands.append(WJCommand("ATWS", "", "Warm start - forces 5-baud init", 4000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATDP", "", "Verify protocol", 1500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATWS", "", "Warm start - forces 5-baud init", 4000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATDP", "", "Verify protocol", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
 
         // ECU communication - these often fail but are not critical
-        commands.append(WJCommand("81", "", "Start communication", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("27 01", "", "Security access request", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("27 02 CD 46", "", "Security access key", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("31 25 00", "", "Start diagnostic routine", 3000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("81", "", "Start communication", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("27 01", "", "Security access request", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("27 02 CD 46", "", "Security access key", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("31 25 00", "", "Start diagnostic routine", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
     }
     else if (protocol == PROTOCOL_J1850_VPW) {
         // J1850 VPW initialization for Transmission, PCM, ABS, etc.
@@ -255,11 +264,11 @@ QList<WJCommand> getProtocolSwitchCommands(WJProtocol fromProtocol, WJProtocol t
     // Reset and switch protocol
     commands.append(WJCommand("ATZ", "ELM327", "Reset for protocol switch", 3000, toProtocol, MODULE_UNKNOWN));
 
-    if (toProtocol == PROTOCOL_ISO9141_2) {
-        commands.append(WJCommand("ATSP3", "OK", "Switch to ISO 9141-2", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATIB10", "OK", "Set ISO baud rate", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATIIA13", "OK", "Set ISO init address", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATH0", "OK", "Headers off for ISO", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+    if (toProtocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
+        commands.append(WJCommand("ATSP5", "OK", "Switch to ISO 9141-2", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATIB10", "OK", "Set ISO baud rate", 500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATIIA13", "OK", "Set ISO init address", 500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATH0", "OK", "Headers off for ISO", 500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
     }
     else if (toProtocol == PROTOCOL_J1850_VPW) {
         commands.append(WJCommand("ATSP1", "OK", "Switch to J1850 VPW", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
@@ -350,7 +359,7 @@ WJModuleConfig getModuleConfig(WJModule module) {
 
     switch (module) {
         case MODULE_ENGINE_EDC15:
-            config.protocol = PROTOCOL_ISO9141_2;
+            config.protocol = PROTOCOL_ISO_14230_4_KWP_FAST;
             config.ecuHeader = WJ::Headers::ENGINE_EDC15;
             config.wakeupMessage = WJ::WakeupMessages::ENGINE_EDC15;
             config.defaultTimeout = 2000;
@@ -389,9 +398,9 @@ QList<WJCommand> getProtocolDetectionCommands() {
     QList<WJCommand> commands;
 
     // Try ISO 9141-2 first (engine)
-    commands.append(WJCommand("ATSP3", "OK", "Try ISO 9141-2", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-    commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set engine header for test", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-    commands.append(WJCommand("81", "C1", "Test engine communication", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+    commands.append(WJCommand("ATSP5", "OK", "Try ISO 9141-2", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
+    commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set engine header for test", 500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
+    commands.append(WJCommand("81", "C1", "Test engine communication", 2000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15));
 
     // Try J1850 VPW (transmission/other modules)
     commands.append(WJCommand("ATSP1", "OK", "Try J1850 VPW", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
@@ -408,7 +417,7 @@ namespace WJUtils {
 
 WJProtocol detectProtocol(const QString& response) {
     if (response.contains("C1") || response.contains("67")) {
-        return PROTOCOL_ISO9141_2; // Engine EDC15 response
+        return PROTOCOL_ISO_14230_4_KWP_FAST; // Engine EDC15 response
     }
     else if (response.contains("41") || response.contains("43")) {
         return PROTOCOL_J1850_VPW; // J1850 response
@@ -418,12 +427,12 @@ WJProtocol detectProtocol(const QString& response) {
 
 bool isProtocolAvailable(WJProtocol protocol) {
     // This would be implemented based on ELM327 capabilities
-    return (protocol == PROTOCOL_ISO9141_2 || protocol == PROTOCOL_J1850_VPW);
+    return (protocol == PROTOCOL_ISO_14230_4_KWP_FAST || protocol == PROTOCOL_J1850_VPW);
 }
 
 QString getProtocolName(WJProtocol protocol) {
     switch (protocol) {
-        case PROTOCOL_ISO9141_2: return "ISO 9141-2";
+        case PROTOCOL_ISO_14230_4_KWP_FAST: return "ISO 9141-2";
         case PROTOCOL_J1850_VPW: return "J1850 VPW";
         case PROTOCOL_AUTO_DETECT: return "Auto Detect";
         default: return "Unknown";
@@ -516,7 +525,7 @@ bool isValidResponse(const QString& response, WJProtocol protocol) {
         return true;
     }
 
-    if (protocol == PROTOCOL_ISO9141_2) {
+    if (protocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
         // ISO 9141-2 specific responses
         return upper.contains("C1") || upper.contains("67") ||
                upper.contains("61") || upper.contains("43") ||
@@ -543,7 +552,7 @@ bool isError(const QString& response, WJProtocol protocol) {
 
     QString upperResponse = response.toUpper();
 
-    if (protocol == PROTOCOL_ISO9141_2) {
+    if (protocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
         for (const QString& error : WJ::ISO9141_ERROR_CODES) {
             if (upperResponse.contains(error)) {
                 return true;
@@ -623,7 +632,7 @@ WJModule getModuleFromHeader(const QString& header) {
 WJProtocol getProtocolFromModule(WJModule module) {
     switch (module) {
         case MODULE_ENGINE_EDC15:
-            return PROTOCOL_ISO9141_2;
+            return PROTOCOL_ISO_14230_4_KWP_FAST;
         case MODULE_TRANSMISSION:
         case MODULE_PCM:
         case MODULE_ABS:
@@ -822,7 +831,7 @@ bool WJDataParser::parseEngineMAFData(const QString& data, WJSensorData& sensorD
         sensorData.engine.mafSpecified = bytes[7];
         sensorData.engine.lastUpdate = QDateTime::currentMSecsSinceEpoch();
         sensorData.engine.dataValid = true;
-        sensorData.currentProtocol = PROTOCOL_ISO9141_2;
+        sensorData.currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
         sensorData.activeModule = MODULE_ENGINE_EDC15;
         return true;
     } catch (...) {
@@ -1253,7 +1262,7 @@ namespace EDC15 {
 // Communication constants
 extern const QString ECU_HEADER = WJ::Headers::ENGINE_EDC15;
 extern const QString WAKEUP_MESSAGE = WJ::WakeupMessages::ENGINE_EDC15;
-extern const QString PROTOCOL = WJ::Protocols::ISO9141_2;
+extern const QString PROTOCOL = WJ::Protocols::ISO_14230_4_KWP_FAST;
 extern const int BAUD_RATE = WJ::Protocols::ISO_BAUD_RATE;
 extern const int DEFAULT_TIMEOUT = WJ::Protocols::DEFAULT_TIMEOUT;
 extern const int FAST_INIT_TIMEOUT = WJ::Protocols::FAST_INIT_TIMEOUT;
@@ -1295,7 +1304,7 @@ extern const QStringList ERROR_CODES = WJ::ISO9141_ERROR_CODES;
 // Legacy EDC15Commands namespace for backward compatibility
 namespace EDC15Commands {
 QList<ELM327Command> getInitSequence() {
-    QList<WJCommand> wjCommands = WJCommands::getInitSequence(PROTOCOL_ISO9141_2);
+    QList<WJCommand> wjCommands = WJCommands::getInitSequence(PROTOCOL_ISO_14230_4_KWP_FAST);
     QList<ELM327Command> legacyCommands;
 
     for (const WJCommand& wjCmd : wjCommands) {
@@ -1316,7 +1325,7 @@ QList<ELM327Command> getAlternativeInit() {
     QList<ELM327Command> commands;
     commands.append(ELM327Command("ATZ", "ELM327", "Reset ELM327", 7500));
     commands.append(ELM327Command("ATE0", "OK", "Echo off", 500));
-    commands.append(ELM327Command("ATSP3", "OK", "Set protocol ISO 9141-2", 1000));
+    commands.append(ELM327Command("ATSP5", "OK", "Set protocol ISO 9141-2", 1000));
     commands.append(ELM327Command("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set ECU header", 500));
     commands.append(ELM327Command("ATFI", "BUS INIT", "Fast initialization", 5000));
     commands.append(ELM327Command("81", "C1", "Start communication", 2000));
@@ -1629,7 +1638,7 @@ bool WJDataParser::parseABSStabilityData(const QString& data, WJSensorData& sens
 
 // Fault code parsing for all modules
 QList<WJ_DTC> WJDataParser::parseEngineFaultCodes(const QString& data) {
-    return parseGenericFaultCodes(data, MODULE_ENGINE_EDC15, PROTOCOL_ISO9141_2);
+    return parseGenericFaultCodes(data, MODULE_ENGINE_EDC15, PROTOCOL_ISO_14230_4_KWP_FAST);
 }
 
 QList<WJ_DTC> WJDataParser::parseTransmissionFaultCodes(const QString& data) {
@@ -2033,7 +2042,7 @@ bool detectAvailableProtocols(QList<WJProtocol>& availableProtocols) {
 
     // This would be implemented with actual ELM327 testing
     // For now, assume both protocols are available
-    availableProtocols.append(PROTOCOL_ISO9141_2);
+    availableProtocols.append(PROTOCOL_ISO_14230_4_KWP_FAST);
     availableProtocols.append(PROTOCOL_J1850_VPW);
 
     return !availableProtocols.isEmpty();

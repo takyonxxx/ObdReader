@@ -15,7 +15,7 @@ class ConnectionManager;
 // Communication protocols used in Jeep WJ
 enum WJProtocol {
     PROTOCOL_UNKNOWN,
-    PROTOCOL_ISO9141_2,    // For EDC15 Engine ECU
+    PROTOCOL_ISO_14230_4_KWP_FAST,    // For EDC15 Engine ECU
     PROTOCOL_J1850_VPW,    // For Transmission, PCM, ABS, etc.
     PROTOCOL_AUTO_DETECT
 };
@@ -199,7 +199,7 @@ extern const QString BODY;             // J1850 VPW
 
 // Protocol configurations
 namespace Protocols {
-extern const QString ISO9141_2;
+extern const QString ISO_14230_4_KWP_FAST;
 extern const QString J1850_VPW;
 extern const int ISO_BAUD_RATE;
 extern const int J1850_BAUD_RATE;
