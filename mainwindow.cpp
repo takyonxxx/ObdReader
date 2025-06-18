@@ -45,7 +45,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Get screen geometry
     QScreen *screen = window()->screen();
     desktopRect = screen->availableGeometry();
-    resize(1200, 900); // Larger window for tabbed interface
+    qDebug() << desktopRect.width() << desktopRect.height();
 
     // Setup WJ initialization commands
     setupWJInitializationCommands();
@@ -210,7 +210,7 @@ void MainWindow::setupConnectionControls() {
     disconnectButton->setEnabled(false);
 
     // Clear and exit buttons
-    clearTerminalButton = new QPushButton("Clear");
+    clearTerminalButton = new QPushButton("Reset");
     clearTerminalButton->setMinimumHeight(50);
 
     exitButton = new QPushButton("Exit");
@@ -1052,13 +1052,9 @@ void MainWindow::onBluetoothDeviceFound(const QString& name, const QString& addr
     bluetoothDevicesCombo->addItem(name + " (" + address + ")");
     deviceAddressMap[index] = address;
 
-    // Automatically select the first found device if it looks like an OBD device
-    if (index == 1 && (name.contains("OBD", Qt::CaseInsensitive) ||
-                      name.contains("ELM", Qt::CaseInsensitive) ||
-                      name.contains("327", Qt::CaseInsensitive))) {
-        bluetoothDevicesCombo->setCurrentIndex(index);
-        logWJData("→ Auto-selected OBD device: " + name + " (" + address + ")");
-    }
+    // Always auto-select the latest found device
+    bluetoothDevicesCombo->setCurrentIndex(index);
+    logWJData("→ Auto-selected device: " + name + " (" + address + ")");
 
     // Display in terminal
     logWJData("→ Found device: " + name + " (" + address + ")");
@@ -1439,6 +1435,8 @@ void MainWindow::onDisconnected() {
 
 void MainWindow::onConnectionStateChanged(const QString& state) {
     logWJData("→ Connection state: " + state);
+    if(state.contains("not connected"))
+        connectButton->setEnabled(true);
 }
 
 // WJ Communication Methods
@@ -1509,12 +1507,44 @@ void MainWindow::processWJInitResponse(const QString& response) {
     const WJCommand& currentCmd = initializationCommands[currentInitStep];
     QString cleanResponse = removeCommandEcho(response).trimmed().toUpper();
     bool responseOK = false;
+    bool shouldAdvanceStep = true;
 
-    // Analyze response based on current command
-    if (currentCmd.command == "ATZ") {
+    // Handle delayed "no data" responses that don't belong to current command
+    if ((cleanResponse == "." || cleanResponse.isEmpty()) &&
+        !currentCmd.command.startsWith("27") &&
+        !currentCmd.command.startsWith("31") &&
+        currentCmd.command != "81") {
+        logWJData("← Delayed response ignored: " + (cleanResponse.isEmpty() ? "empty" : cleanResponse));
+        return; // Don't advance to next command
+    }
+
+    // Handle STOPPED errors first
+    if (isWJError(cleanResponse) && cleanResponse.contains("STOPPED")) {
+        logWJData("❌ ECU rejected command: " + currentCmd.command + " - " + cleanResponse);
+
+        // For security access commands, try to recover
+        if (currentCmd.command.startsWith("27")) {
+            logWJData("→ Security access blocked - continuing with limited access");
+            engineSecurityAccessGranted = false;
+            responseOK = true; // Continue with limited access
+        } else if (currentCmd.command.startsWith("31")) {
+            logWJData("→ Diagnostic routine blocked - continuing anyway");
+            responseOK = true; // Continue anyway
+        } else {
+            responseOK = false;
+        }
+    }
+    // Normal response processing
+    else if (currentCmd.command == "ATZ") {
         currentInitState = STATE_RESETTING;
-        if (cleanResponse.contains("ELM327")) {
-            logWJData("✓ ELM327 reset successful: " + cleanResponse);
+        if (cleanResponse.contains("ELM327") || cleanResponse.isEmpty()) {
+            logWJData("✓ ELM327 reset successful: " + (cleanResponse.isEmpty() ? "OK" : cleanResponse));
+            responseOK = true;
+        }
+    }
+    else if (currentCmd.command == "ATE0") {
+        if (cleanResponse.contains("ELM327") || cleanResponse.contains("OK")) {
+            logWJData("✓ Echo off - " + (cleanResponse.isEmpty() ? "OK" : cleanResponse));
             responseOK = true;
         }
     }
@@ -1541,16 +1571,28 @@ void MainWindow::processWJInitResponse(const QString& response) {
     }
     else if (currentCmd.command == "ATWS" || currentCmd.command == "ATFI") {
         currentInitState = STATE_FAST_INIT;
-        if (cleanResponse.contains("BUS INIT") || cleanResponse.contains("OK")) {
-            logWJData("✓ Bus initialization successful");
+        if (cleanResponse.contains("ELM327") || cleanResponse.contains("BUS INIT") || cleanResponse.contains("OK")) {
+            logWJData("✓ Bus initialization successful: " + cleanResponse);
+            responseOK = true;
+        }
+    }
+    else if (currentCmd.command == "ATDP") {
+        if (cleanResponse.contains("ISO") || cleanResponse.contains("9141")) {
+            logWJData("✓ Protocol verified: " + cleanResponse);
             responseOK = true;
         }
     }
     else if (currentCmd.command == "81") {
         currentInitState = STATE_START_COMMUNICATION;
-        if (cleanResponse.contains("C1") || cleanResponse.length() >= 4) {
+        if (cleanResponse.contains("BUS INIT") || cleanResponse.contains("C1") || cleanResponse.length() >= 4) {
             logWJData("✓ Engine communication established: " + cleanResponse);
             responseOK = true;
+        }
+        // For start communication, ignore delayed "." responses
+        else if (cleanResponse == ".") {
+            logWJData("← Delayed no-data response from start communication");
+            shouldAdvanceStep = false; // Don't advance, wait for real response
+            return;
         }
     }
     else if (currentCmd.command == "27 01") {
@@ -1558,6 +1600,12 @@ void MainWindow::processWJInitResponse(const QString& response) {
         if (cleanResponse.contains("67 01") || cleanResponse.startsWith("67")) {
             logWJData("✓ Security access requested: " + cleanResponse);
             responseOK = true;
+        } else if (cleanResponse == ".") {
+            logWJData("✓ Security access request sent (no immediate response)");
+            responseOK = true;
+        } else if (cleanResponse.contains("7F")) {
+            logWJData("⚠️ Security access request denied: " + cleanResponse);
+            responseOK = true; // Continue anyway
         }
     }
     else if (currentCmd.command == "27 02 CD 46") {
@@ -1567,7 +1615,12 @@ void MainWindow::processWJInitResponse(const QString& response) {
             responseOK = true;
         } else if (cleanResponse.contains("7F 27")) {
             logWJData("⚠️ Security access denied (expected): " + cleanResponse);
+            engineSecurityAccessGranted = false;
             responseOK = true; // This is often expected
+        } else if (cleanResponse.contains("BUS INIT") || cleanResponse == ".") {
+            logWJData("⚠️ Security access response: " + (cleanResponse == "." ? "No data" : cleanResponse));
+            engineSecurityAccessGranted = false;
+            responseOK = true; // Continue anyway
         }
     }
     else if (currentCmd.command == "31 25 00") {
@@ -1575,6 +1628,12 @@ void MainWindow::processWJInitResponse(const QString& response) {
         if (cleanResponse.contains("71 25") || cleanResponse.startsWith("71")) {
             logWJData("✓ Diagnostic routine started: " + cleanResponse);
             responseOK = true;
+        } else if (cleanResponse == ".") {
+            logWJData("✓ Diagnostic routine sent (no immediate response)");
+            responseOK = true;
+        } else if (cleanResponse.contains("7F")) {
+            logWJData("⚠️ Diagnostic routine denied: " + cleanResponse);
+            responseOK = true; // Continue anyway
         }
     }
     else {
@@ -1587,26 +1646,35 @@ void MainWindow::processWJInitResponse(const QString& response) {
 
     if (!responseOK && !isWJError(cleanResponse)) {
         logWJData("⚠️ Unexpected response for " + currentCmd.command + ": " + cleanResponse);
-        // Continue anyway for some commands
+        // Continue anyway for most commands
         responseOK = true;
     }
 
-    // Move to next command
-    currentInitStep++;
+    // Only advance if we should and response was OK
+    if (shouldAdvanceStep && responseOK) {
+        // Move to next command
+        currentInitStep++;
 
-    if (currentInitStep < initializationCommands.size()) {
-        const WJCommand& nextCmd = initializationCommands[currentInitStep];
+        if (currentInitStep < initializationCommands.size()) {
+            const WJCommand& nextCmd = initializationCommands[currentInitStep];
 
-        // Calculate delay
-        int delay = nextCmd.timeoutMs;
-
-        QTimer::singleShot(delay, [this, nextCmd]() {
-            if (connected && connectionManager) {
-                logWJData("→ " + nextCmd.description + ": " + nextCmd.command);
-                lastSentCommand = nextCmd.command;
-                connectionManager->send(nextCmd.command);
+            // Calculate delay - add extra time for critical commands
+            int delay = nextCmd.timeoutMs;
+            if (nextCmd.command.startsWith("27") || nextCmd.command.startsWith("31")) {
+                delay += 1000; // Extra delay for security/diagnostic commands
             }
-        });
+
+            QTimer::singleShot(delay, [this, nextCmd]() {
+                if (connected && connectionManager) {
+                    logWJData("→ " + nextCmd.description + ": " + nextCmd.command);
+                    lastSentCommand = nextCmd.command;
+                    connectionManager->send(nextCmd.command);
+                }
+            });
+        }
+    } else if (!shouldAdvanceStep) {
+        // Log that we're waiting for the real response
+        logWJData("→ Waiting for response to: " + currentCmd.command);
     }
 }
 
@@ -2207,7 +2275,10 @@ void MainWindow::onSendCommandClicked() {
 }
 
 void MainWindow::onClearTerminalClicked() {
+    connectButton->setEnabled(true);
+    disconnectButton->setEnabled(false);
     terminalDisplay->clear();
+    disconnectFromWJ();
     logWJData("Terminal cleared");
 }
 

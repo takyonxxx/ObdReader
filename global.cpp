@@ -198,41 +198,39 @@ namespace WJCommands {
 
 QList<WJCommand> getInitSequence(WJProtocol protocol) {
     QList<WJCommand> commands;
-
     if (protocol == PROTOCOL_ISO9141_2) {
         // Engine (EDC15) initialization sequence - ISO 9141-2
-        commands.append(WJCommand("ATZ", "ELM327", "Reset ELM327", 7500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATE0", "OK", "Echo off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATL0", "OK", "Linefeed off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATH0", "OK", "Headers off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATS0", "OK", "Spaces off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATST62", "OK", "Set timeout", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATSP3", "OK", "Set protocol ISO 9141-2", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATIB10", "OK", "Set ISO baud rate to 10400", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATIIA13", "OK", "Set ISO init address to 0x13", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "OK", "Set wakeup message", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set ECU header", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("ATWS", "OK", "Warm start - forces 5-baud init", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATZ", "", "Reset ELM327", 7500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATE0", "", "Echo off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATL0", "", "Linefeed off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATH0", "", "Headers off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATS0", "", "Spaces off", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATST62", "", "Set timeout", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATSP3", "", "Set protocol ISO 9141-2", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATIB10", "", "Set ISO baud rate to 10400", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATIIA13", "", "Set ISO init address to 0x13", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATWM" + WJ::WakeupMessages::ENGINE_EDC15, "", "Set wakeup message", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATSH" + WJ::Headers::ENGINE_EDC15, "", "Set ECU header", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("ATWS", "", "Warm start - forces 5-baud init", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
         commands.append(WJCommand("ATDP", "", "Verify protocol", 500, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("81", "C1", "Start communication", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("27 01", "67 01", "Security access request", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("27 02 CD 46", "67 02", "Security access key", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
-        commands.append(WJCommand("31 25 00", "71 25", "Start diagnostic routine", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("81", "", "Start communication", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("27 01", "", "Security access request", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("27 02 CD 46", "", "Security access key", 2000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
+        commands.append(WJCommand("31 25 00", "", "Start diagnostic routine", 1000, PROTOCOL_ISO9141_2, MODULE_ENGINE_EDC15));
     }
     else if (protocol == PROTOCOL_J1850_VPW) {
         // J1850 VPW initialization for Transmission, PCM, ABS, etc.
-        commands.append(WJCommand("ATZ", "ELM327", "Reset ELM327", 7500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
-        commands.append(WJCommand("ATE0", "OK", "Echo off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATL0", "OK", "Linefeed off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATH1", "OK", "Headers on", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATS0", "OK", "Spaces off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATST32", "OK", "Set timeout for J1850", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
-        commands.append(WJCommand("ATSP1", "OK", "Set protocol J1850 VPW", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
-        commands.append(WJCommand("ATIB10", "OK", "Set baud rate to 10400", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATZ", "", "Reset ELM327", 7500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
+        commands.append(WJCommand("ATE0", "", "Echo off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATL0", "", "Linefeed off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATH1", "", "Headers on", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATS0", "", "Spaces off", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATST32", "", "Set timeout for J1850", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
+        commands.append(WJCommand("ATSP1", "", "Set protocol J1850 VPW", 1000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION, true));
+        commands.append(WJCommand("ATIB10", "", "Set baud rate to 10400", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
         commands.append(WJCommand("ATDP", "", "Verify protocol", 500, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
         commands.append(WJCommand("ATMA", "", "Monitor all messages", 2000, PROTOCOL_J1850_VPW, MODULE_TRANSMISSION));
     }
-
     return commands;
 }
 
@@ -476,29 +474,58 @@ QString formatDTCCode(int byte1, int byte2, WJProtocol protocol) {
         .arg(fifthDigit, 1, 16, QChar('0')).toUpper();
 }
 
-bool isValidResponse(const QString& response, WJProtocol protocol) {
-    if (response.isEmpty()) {
+bool isValidHexData(const QString& data) {
+    QString trimmed = data.trimmed();
+    if (trimmed.isEmpty()) {
         return false;
     }
 
+    // Check if it's valid hex (only 0-9, A-F, spaces)
+    QRegularExpression hexPattern("^[0-9A-Fa-f\\s]+$");
+    return hexPattern.match(trimmed).hasMatch() && trimmed.length() >= 2;
+}
+
+bool isValidResponse(const QString& response, WJProtocol protocol) {
     QString cleaned = cleanData(response, protocol);
+    QString upper = cleaned.toUpper();
+
+    // Common valid responses for all protocols
+    if (upper.contains("OK") ||
+        upper.contains("ELM327") ||
+        upper.contains("BUS INIT") ||
+        upper.contains("ISO 9141-2") ||
+        upper.contains("J1850") ||
+        upper.contains("CAN") ||
+        upper.contains("AUTO") ||
+        cleaned.trimmed() == ".") {  // Single dot is "no data" - valid response
+        return true;
+    }
 
     if (protocol == PROTOCOL_ISO9141_2) {
-        // Check for ISO 9141-2 specific responses
-        return cleaned.contains("C1") || cleaned.contains("67") ||
-               cleaned.contains("61") || cleaned.contains("43") ||
-               cleaned.contains("ELM327") || cleaned.contains("OK");
+        // ISO 9141-2 specific responses
+        return upper.contains("C1") || upper.contains("67") ||
+               upper.contains("61") || upper.contains("43") ||
+               upper.contains("7F") ||  // Negative response
+               upper.contains("83") ||  // Session control response
+               upper.contains("C7") ||  // Security access response
+               isValidHexData(cleaned); // Any valid hex data
     }
     else if (protocol == PROTOCOL_J1850_VPW) {
-        // Check for J1850 specific responses
-        return cleaned.contains("41") || cleaned.contains("43") ||
-               cleaned.contains("OK") || cleaned.contains("ELM327");
+        // J1850 specific responses
+        return upper.contains("41") || upper.contains("43") ||
+               upper.contains("7F") ||  // Negative response
+               isValidHexData(cleaned);
     }
 
     return false;
 }
 
 bool isError(const QString& response, WJProtocol protocol) {
+    // Return false if response is empty
+    if (response.isEmpty()) {
+        return false;
+    }
+
     QString upperResponse = response.toUpper();
 
     if (protocol == PROTOCOL_ISO9141_2) {
