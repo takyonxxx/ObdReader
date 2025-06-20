@@ -184,7 +184,6 @@ void MainWindow::setupUI() {
     // Setup different UI sections
     setupConnectionTypeControls();
     setupConnectionControls();
-    setupProtocolControls();
     setupModuleSelection();
     setupTabWidget();
     setupTerminalDisplay();
@@ -192,9 +191,8 @@ void MainWindow::setupUI() {
     // Add layouts to main layout with adjusted stretch factors
     mainLayout->addLayout(connectionTypeLayout);
     mainLayout->addLayout(connectionLayout);
-    //mainLayout->addLayout(protocolLayout);
-    mainLayout->addWidget(moduleTabWidget, 3); // Increased stretch factor
-    mainLayout->addWidget(terminalDisplay, 1); // Added stretch factor
+    mainLayout->addWidget(moduleTabWidget);
+    mainLayout->addWidget(terminalContainer);
 }
 
 void MainWindow::setupConnectionTypeControls() {
@@ -280,45 +278,10 @@ void MainWindow::setupConnectionControls() {
     buttonLayout->addWidget(connectButton);
     buttonLayout->addWidget(disconnectButton);
     buttonLayout->addWidget(clearTerminalButton);
-    buttonLayout->addWidget(exitButton);
-    buttonLayout->addStretch(); // Push buttons to left
 
     // Add both layouts to the main connection layout (vertically stacked)
     connectionLayout->addLayout(statusLayout);   // First row: status labels
     connectionLayout->addLayout(buttonLayout);   // Second row: buttons
-}
-
-void MainWindow::setupProtocolControls() {
-    protocolLayout = new QHBoxLayout();
-    protocolLayout->setSpacing(2);
-
-    // Protocol selection
-    QLabel* protocolSelectionLabel = new QLabel("Proto:");  // Shortened
-    protocolCombo = new QComboBox();
-    protocolCombo->setMinimumHeight(30);
-    protocolCombo->addItem("Auto");        // Shortened
-    protocolCombo->addItem("ISO");         // Shortened
-    protocolCombo->addItem("J1850");       // Shortened
-    protocolCombo->setCurrentIndex(0);
-
-    autoDetectProtocolButton = new QPushButton("Detect");  // Shortened
-    autoDetectProtocolButton->setMinimumHeight(30);
-    autoDetectProtocolButton->setMinimumWidth(50);
-
-    switchProtocolButton = new QPushButton("Switch");
-    switchProtocolButton->setMinimumHeight(30);
-    switchProtocolButton->setMinimumWidth(50);
-    switchProtocolButton->setEnabled(false);
-
-    currentProtocolLabel = new QLabel("Curr: Unknown");  // Shortened
-    currentProtocolLabel->setMinimumHeight(30);
-    currentProtocolLabel->setWordWrap(true);
-
-    protocolLayout->addWidget(protocolSelectionLabel);
-    protocolLayout->addWidget(protocolCombo, 1);
-    protocolLayout->addWidget(autoDetectProtocolButton);
-    protocolLayout->addWidget(switchProtocolButton);
-    protocolLayout->addWidget(currentProtocolLabel, 1);
 }
 
 void MainWindow::setupModuleSelection() {
@@ -770,7 +733,7 @@ void MainWindow::setupMultiModuleTab() {
 }
 
 void MainWindow::setupTerminalDisplay() {
-    QWidget* terminalContainer = new QWidget();
+    terminalContainer = new QWidget();
     QVBoxLayout* terminalLayout = new QVBoxLayout(terminalContainer);
     terminalLayout->setSpacing(2);
     terminalLayout->setContentsMargins(0, 0, 0, 0);
@@ -779,26 +742,6 @@ void MainWindow::setupTerminalDisplay() {
     QHBoxLayout* terminalControls = new QHBoxLayout();
     terminalControls->setSpacing(2);
 
-    QLabel* logLevelLabel = new QLabel("Log:");
-    logLevelLabel->setStyleSheet("font-size: 8pt;");
-
-    QComboBox* logLevelCombo = new QComboBox();
-    logLevelCombo->addItem("Minimal");
-    logLevelCombo->addItem("Normal");
-    logLevelCombo->addItem("Verbose");
-    logLevelCombo->setCurrentIndex(0); // Default to minimal
-    logLevelCombo->setStyleSheet("font-size: 8pt;");
-    logLevelCombo->setMaximumWidth(80);
-
-    connect(logLevelCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            [this](int index) {
-                currentLogLevel = static_cast<LogLevel>(index);
-            });
-
-    terminalControls->addWidget(logLevelLabel);
-    terminalControls->addWidget(logLevelCombo);
-    terminalControls->addStretch();
-
     // Terminal display
     terminalDisplay = new QTextBrowser();
     terminalDisplay->setMinimumHeight(300);
@@ -806,8 +749,8 @@ void MainWindow::setupTerminalDisplay() {
 
     terminalLayout->addLayout(terminalControls);
     terminalLayout->addWidget(terminalDisplay);
+    terminalLayout->addWidget(exitButton);
 }
-
 
 // Setup Connections
 void MainWindow::setupConnections() {
@@ -822,26 +765,8 @@ void MainWindow::setupConnections() {
     // Scan bluetooth button
     connect(scanBluetoothButton, &QPushButton::clicked, this, &MainWindow::onScanBluetoothClicked);
 
-    // Protocol and module management
-    connect(protocolCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int index) {
-                WJProtocol protocol = PROTOCOL_AUTO_DETECT;
-                if (index == 1) protocol = PROTOCOL_ISO_14230_4_KWP_FAST;
-                else if (index == 2) protocol = PROTOCOL_J1850_VPW;
-                onProtocolSwitchRequested(protocol);
-            });
-
     connect(moduleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &MainWindow::onModuleSelectionChanged);
-
-    connect(autoDetectProtocolButton, &QPushButton::clicked, this, &MainWindow::onAutoDetectProtocolClicked);
-    connect(switchProtocolButton, &QPushButton::clicked, this, [this]() {
-        int index = protocolCombo->currentIndex();
-        WJProtocol protocol = PROTOCOL_AUTO_DETECT;
-        if (index == 1) protocol = PROTOCOL_ISO_14230_4_KWP_FAST;
-        else if (index == 2) protocol = PROTOCOL_J1850_VPW;
-        onProtocolSwitchRequested(protocol);
-    });
 
     // Connection management
     connect(connectButton, &QPushButton::clicked, this, &MainWindow::onConnectClicked);
@@ -1311,8 +1236,7 @@ void MainWindow::onProtocolSwitchRequested(WJProtocol protocol) {
     }
 
     if (switchToProtocol(protocol)) {
-        currentProtocol = protocol;
-        currentProtocolLabel->setText("Current: " + WJUtils::getProtocolName(protocol));
+        currentProtocol = protocol;       
         logWJData("✓ Switched to protocol: " + WJUtils::getProtocolName(protocol));
     } else {
         logWJData("❌ Failed to switch to protocol: " + WJUtils::getProtocolName(protocol));
@@ -1357,7 +1281,6 @@ void MainWindow::onAutoDetectProtocolClicked() {
     if (switchToProtocol(PROTOCOL_ISO_14230_4_KWP_FAST)) {
         logWJData("✓ ISO_14230_4_KWP_FAST protocol detected and available");
         currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
-        protocolCombo->setCurrentIndex(1);
     }
 
     // Try J1850 VPW (other modules)
@@ -1390,7 +1313,6 @@ bool MainWindow::switchToProtocol(WJProtocol protocol) {
 
     protocolSwitchingInProgress = false;
     currentProtocol = protocol;
-    currentProtocolLabel->setText("Current: " + WJUtils::getProtocolName(protocol));
 
     logWJData(QString("✓ Protocol switched to: %1")
                   .arg(WJUtils::getProtocolName(protocol)));
@@ -1596,7 +1518,6 @@ void MainWindow::disconnectFromWJ() {
     disconnectButton->setEnabled(false);
     connectionStatusLabel->setText("Status: Disconnected");
     protocolLabel->setText("Protocol: Unknown");
-    currentProtocolLabel->setText("Current: Unknown");
     currentModuleLabel->setText("Current: None");
 
     // Disable all diagnostic buttons
@@ -1692,14 +1613,12 @@ void MainWindow::processWJInitResponse(const QString& response) {
         clearAllModuleFaultCodesButton->setEnabled(true);
         readAllSensorDataButton->setEnabled(true);
         sendCommandButton->setEnabled(true);
-        switchProtocolButton->setEnabled(true);
 
         initializationTimer->stop();
 
         // Set initial protocol and module
         currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
         currentModule = MODULE_ENGINE_EDC15;
-        currentProtocolLabel->setText("Current: " + WJUtils::getProtocolName(currentProtocol));
         currentModuleLabel->setText("Current: " + WJUtils::getModuleName(currentModule));
         protocolLabel->setText("Protocol: Ready");
 
@@ -1808,7 +1727,6 @@ void MainWindow::onInitializationTimeout() {
     // Set basic state
     currentProtocol = PROTOCOL_ISO_14230_4_KWP_FAST;
     currentModule = MODULE_ENGINE_EDC15;
-    currentProtocolLabel->setText("Current: ISO_14230_4_KWP_FAST");
     currentModuleLabel->setText("Current: Engine (Limited)");
 
     // Enable multi-module buttons
@@ -1816,7 +1734,6 @@ void MainWindow::onInitializationTimeout() {
     clearAllModuleFaultCodesButton->setEnabled(true);
     readAllSensorDataButton->setEnabled(true);
     sendCommandButton->setEnabled(true);
-    switchProtocolButton->setEnabled(true);
 }
 
 void MainWindow::sendWJCommand(const QString& command, WJModule targetModule) {

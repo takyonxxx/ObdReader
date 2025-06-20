@@ -138,7 +138,6 @@ private:
     void setupUI();
     void setupConnectionTypeControls();
     void setupConnectionControls();
-    void setupProtocolControls();
     void setupModuleSelection();
     void setupTabWidget();
     void setupEngineTab();
@@ -217,7 +216,6 @@ private:
     QGridLayout* controlsLayout;
     QHBoxLayout* connectionTypeLayout;
     QVBoxLayout* connectionLayout;
-    QHBoxLayout* protocolLayout;
     QVBoxLayout* moduleLayout;
 
     // Connection type controls
@@ -235,11 +233,7 @@ private:
     QLabel* protocolLabel;
 
     // Protocol and module controls
-    QComboBox* protocolCombo;
     QComboBox* moduleCombo;
-    QPushButton* autoDetectProtocolButton;
-    QPushButton* switchProtocolButton;
-    QLabel* currentProtocolLabel;
     QLabel* currentModuleLabel;
 
     // Tab widget for different modules
@@ -350,6 +344,7 @@ private:
 
     // Terminal display
     QTextBrowser* terminalDisplay;
+    QWidget* terminalContainer;
 
     // Core components
     ELM* elm;
