@@ -210,9 +210,6 @@ const QStringList J1850_ERROR_CODES = {
     "FRAMING ERROR", "OVERFLOW", "PARITY ERROR"
 };
 
-// ADD ALIAS for backward compatibility
-const QStringList ISO9141_ERROR_CODES = KWP2000_ERROR_CODES;
-
 // Protocol validation helpers
 namespace Validation {
 inline bool isKWP2000Response(const QString& response) {
@@ -319,11 +316,10 @@ QList<WJCommand> WJCommands::getModuleInitCommands(WJModule module) {
         break;
 
     case MODULE_TRANSMISSION:
-        // Transmission - uses J1850 VPW
-        if (protocol == PROTOCOL_J1850_VPW) {
-            // J1850 doesn't use wakeup messages or headers the same way
-            commands.append(WJCommand("ATMA", "", "Monitor all for transmission", 2000, protocol, module));
-        }
+        // Transmission - ALSO uses KWP2000 Fast (not J1850 VPW)
+        commands.append(WJCommand("ATWM8118F13E", "OK", "Set TCM wakeup message", 1000, protocol, module));
+        commands.append(WJCommand("ATSH8118F1", "OK", "Set TCM header", 1000, protocol, module));
+        commands.append(WJCommand("ATFI", "BUS INIT: OK", "Fast initialization", 3000, protocol, module));
         break;
 
     case MODULE_PCM:
@@ -604,7 +600,7 @@ bool isError(const QString& response, WJProtocol protocol) {
     QString upperResponse = response.toUpper();
 
     if (protocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
-        for (const QString& error : WJ::ISO9141_ERROR_CODES) {
+        for (const QString& error : WJ::KWP2000_ERROR_CODES) {
             if (upperResponse.contains(error)) {
                 return true;
             }
@@ -1349,7 +1345,7 @@ extern const QString RESPONSE_SECURITY_GRANTED = "67 02";
 extern const QString RESPONSE_DIAGNOSTIC_ROUTINE = "71 25";
 
 // Error codes specific to EDC15 (subset of WJ error codes)
-extern const QStringList ERROR_CODES = WJ::ISO9141_ERROR_CODES;
+extern const QStringList ERROR_CODES = WJ::KWP2000_ERROR_CODES;
 }
 
 // Legacy EDC15Commands namespace for backward compatibility

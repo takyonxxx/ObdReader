@@ -285,7 +285,7 @@ extern const QString ABS_DATA;
 
 // Error codes for both protocols
 extern const QStringList ALL_ERROR_CODES;
-extern const QStringList ISO9141_ERROR_CODES;
+extern const QStringList KWP2000_ERROR_CODES;
 extern const QStringList J1850_ERROR_CODES;
 }
 
