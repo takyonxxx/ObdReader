@@ -74,9 +74,7 @@ void WJSensorData::reset() {
     globalLastUpdate = 0;
 }
 
-/// Correct structure for WJ namespace in global.cpp
-// Make sure your namespace structure looks exactly like this:
-
+// WJ namespace implementation
 namespace WJ {
 // Module headers and addresses
 namespace Headers {
@@ -92,7 +90,7 @@ const QString BODY = "8148F1";
 // Protocol configurations
 namespace Protocols {
 const QString KWP2000_FAST = "5";
-const QString ISO_14230_4_KWP_FAST = "5";    // ADD THIS
+const QString ISO_14230_4_KWP_FAST = "5";
 const QString J1850_VPW = "1";
 const int ISO_BAUD_RATE = 10400;
 const int J1850_BAUD_RATE = 10400;
@@ -124,7 +122,7 @@ const QString READ_RAIL_PRESSURE_ACTUAL = "21 12";
 const QString READ_RAIL_PRESSURE_SPEC = "21 22";
 const QString READ_MAP_DATA = "21 15";
 const QString READ_INJECTOR_DATA = "21 28";
-const QString READ_MISC_DATA = "21 30";        // ADD THIS
+const QString READ_MISC_DATA = "21 30";
 const QString READ_COOLANT_TEMP = "21 05";
 const QString READ_ENGINE_RPM = "21 0C";
 const QString READ_VEHICLE_SPEED = "21 0D";
@@ -164,7 +162,7 @@ const QString READ_BRAKE_DATA = "01 A1";
 const QString READ_STABILITY_DATA = "01 A2";
 } // End ABS namespace
 
-// Expected response prefixes - USE THE COMPLETE VERSION I PROVIDED EARLIER
+// Expected response prefixes
 namespace Responses {
 // KWP2000 Fast responses (Engine EDC15)
 const QString ENGINE_MAF = "61 20";
@@ -172,8 +170,8 @@ const QString ENGINE_RAIL_PRESSURE = "61 12";
 const QString ENGINE_INJECTOR = "61 28";
 const QString ENGINE_DTC = "43";
 const QString ENGINE_COMMUNICATION = "C1 EF 8F";
-const QString ENGINE_SECURITY_ACCESS = "67 01";   // ADD THIS
-const QString ENGINE_SECURITY = "67 01";          // Keep both for compatibility
+const QString ENGINE_SECURITY_ACCESS = "67 01";
+const QString ENGINE_SECURITY = "67 01";
 const QString ENGINE_SECURITY_KEY = "7F 27";
 const QString ENGINE_DIAGNOSTIC = "71 25";
 
@@ -227,34 +225,34 @@ inline bool isErrorResponse(const QString& response) {
            response.startsWith("7F");
 }
 } // End Validation namespace
-} // End WJ namespace - THIS SHOULD BE THE ONLY CLOSING BRACE HERE
+} // End WJ namespace
 
-
+// FIXED: Complete initialization sequence with proper ELM327 setup
 QList<WJCommand> WJCommands::getInitSequence(WJProtocol protocol) {
     QList<WJCommand> commands;
 
     if (protocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
-        // Basic ELM327 setup - these MUST work
+        // STEP 1: Basic ELM327 setup - CRITICAL FOUNDATION
         commands.append(WJCommand("ATZ", "ELM327", "Reset ELM327", 7500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
         commands.append(WJCommand("ATE0", "OK", "Echo off", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
-        commands.append(WJCommand("ATL0", "OK", "Linefeed off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATH0", "OK", "Headers off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
-        commands.append(WJCommand("ATS0", "OK", "Spaces off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        commands.append(WJCommand("ATL0", "OK", "Linefeed off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATH0", "OK", "Headers off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
+        commands.append(WJCommand("ATS0", "OK", "Spaces off", 1000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
 
-        // Protocol setup for KWP2000 Fast
+        // STEP 2: Protocol setup - MUST come before ECU-specific commands
         commands.append(WJCommand("ATSP5", "OK", "Set protocol KWP2000 Fast", 2000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
 
-        // Critical: Set the specific wakeup message and header for Jeep WJ EDC15
+        // STEP 3: ECU-specific setup - NOW wakeup and header will work
         commands.append(WJCommand("ATWM8115F13E", "OK", "Set wakeup message for EDC15", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
         commands.append(WJCommand("ATSH8115F1", "OK", "Set header for EDC15", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
 
-        // Fast initialization - this is KEY for KWP2000 Fast
+        // STEP 4: Fast initialization - THIS SHOULD NOW WORK
         commands.append(WJCommand("ATFI", "BUS INIT: OK", "Fast initialization", 4000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, true));
 
-        // Verify protocol is active
-        commands.append(WJCommand("ATDP", "ISO 14230-4 (KWP 5BAUD)", "Verify protocol", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
+        // STEP 5: Verify protocol is active
+        commands.append(WJCommand("ATDP", "ISO 14230-4", "Verify protocol", 1500, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
 
-        // ECU communication sequence - exactly as in WJdiag
+        // STEP 6: ECU communication sequence - exactly as in WJdiag
         commands.append(WJCommand("81", "C1 EF 8F", "Start communication", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
         commands.append(WJCommand("27 01", "67 01", "Security access request", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
         commands.append(WJCommand("27 02 CD 46", "7F 27", "Security access key", 3000, PROTOCOL_ISO_14230_4_KWP_FAST, MODULE_ENGINE_EDC15, false));
@@ -312,14 +310,12 @@ QList<WJCommand> WJCommands::getModuleInitCommands(WJModule module) {
         // EDC15 Engine - uses KWP2000 Fast with specific addresses
         commands.append(WJCommand("ATWM8115F13E", "OK", "Set EDC15 wakeup message", 1000, protocol, module));
         commands.append(WJCommand("ATSH8115F1", "OK", "Set EDC15 header", 1000, protocol, module));
-        commands.append(WJCommand("ATFI", "BUS INIT: OK", "Fast initialization", 3000, protocol, module));
         break;
 
     case MODULE_TRANSMISSION:
         // Transmission - ALSO uses KWP2000 Fast (not J1850 VPW)
         commands.append(WJCommand("ATWM8118F13E", "OK", "Set TCM wakeup message", 1000, protocol, module));
         commands.append(WJCommand("ATSH8118F1", "OK", "Set TCM header", 1000, protocol, module));
-        commands.append(WJCommand("ATFI", "BUS INIT: OK", "Fast initialization", 3000, protocol, module));
         break;
 
     case MODULE_PCM:
@@ -473,7 +469,6 @@ WJProtocol detectProtocol(const QString& response) {
 }
 
 bool isProtocolAvailable(WJProtocol protocol) {
-    // This would be implemented based on ELM327 capabilities
     return (protocol == PROTOCOL_ISO_14230_4_KWP_FAST || protocol == PROTOCOL_J1850_VPW);
 }
 
@@ -513,7 +508,7 @@ double convertPercentage(int rawValue) {
 }
 
 double convertSpeed(int rawValue) {
-    return rawValue * 0.1; // Adjust factor based on actual scaling
+    return rawValue * 0.1;
 }
 
 double convertVoltage(int rawValue) {
@@ -551,7 +546,6 @@ bool isValidHexData(const QString& data) {
         return false;
     }
 
-    // Check if it's valid hex (only 0-9, A-F, spaces)
     QRegularExpression hexPattern("^[0-9A-Fa-f\\s]+$");
     return hexPattern.match(trimmed).hasMatch() && trimmed.length() >= 2;
 }
@@ -560,31 +554,19 @@ bool isValidResponse(const QString& response, WJProtocol protocol) {
     QString cleaned = cleanData(response, protocol);
     QString upper = cleaned.toUpper();
 
-    // Common valid responses for all protocols
-    if (upper.contains("OK") ||
-        upper.contains("ELM327") ||
-        upper.contains("BUS INIT") ||
-        upper.contains("ISO_14230_4_KWP_FAST") ||
-        upper.contains("J1850") ||
-        upper.contains("CAN") ||
-        upper.contains("AUTO") ||
-        cleaned.trimmed() == ".") {  // Single dot is "no data" - valid response
+    if (upper.contains("OK") || upper.contains("ELM327") || upper.contains("BUS INIT") ||
+        upper.contains("ISO_14230_4_KWP_FAST") || upper.contains("J1850") ||
+        upper.contains("CAN") || upper.contains("AUTO") || cleaned.trimmed() == ".") {
         return true;
     }
 
     if (protocol == PROTOCOL_ISO_14230_4_KWP_FAST) {
-        // ISO_14230_4_KWP_FAST specific responses
-        return upper.contains("C1") || upper.contains("67") ||
-               upper.contains("61") || upper.contains("43") ||
-               upper.contains("7F") ||  // Negative response
-               upper.contains("83") ||  // Session control response
-               upper.contains("C7") ||  // Security access response
-               isValidHexData(cleaned); // Any valid hex data
+        return upper.contains("C1") || upper.contains("67") || upper.contains("61") ||
+               upper.contains("43") || upper.contains("7F") || upper.contains("83") ||
+               upper.contains("C7") || isValidHexData(cleaned);
     }
     else if (protocol == PROTOCOL_J1850_VPW) {
-        // J1850 specific responses
-        return upper.contains("41") || upper.contains("43") ||
-               upper.contains("7F") ||  // Negative response
+        return upper.contains("41") || upper.contains("43") || upper.contains("7F") ||
                isValidHexData(cleaned);
     }
 
@@ -592,7 +574,6 @@ bool isValidResponse(const QString& response, WJProtocol protocol) {
 }
 
 bool isError(const QString& response, WJProtocol protocol) {
-    // Return false if response is empty
     if (response.isEmpty()) {
         return false;
     }
@@ -614,7 +595,6 @@ bool isError(const QString& response, WJProtocol protocol) {
         }
     }
 
-    // Check general errors
     for (const QString& error : WJ::ALL_ERROR_CODES) {
         if (upperResponse.contains(error)) {
             return true;
@@ -633,7 +613,6 @@ QString cleanData(const QString& input, WJProtocol protocol) {
     cleaned.remove(QChar(0x00));
 
     if (protocol == PROTOCOL_J1850_VPW) {
-        // Additional J1850 specific cleaning
         cleaned.remove(",");
     }
 
@@ -698,7 +677,6 @@ WJProtocol getProtocolFromModule(WJModule module) {
 // Enhanced DTC database implementation
 namespace WJ_DTCs {
 
-// Comprehensive DTC database for all Jeep WJ modules
 static const QHash<QString, QString> ENGINE_DTC_DESCRIPTIONS = {
     {"P0016", "Crankshaft/Camshaft Position Correlation"},
     {"P0087", "Fuel Rail/System Pressure Too Low"},
@@ -811,7 +789,6 @@ QString getDTCDescription(const QString& dtcCode, WJModule module) {
     case MODULE_ABS:
         return ABS_DTC_DESCRIPTIONS.value(dtcCode, "Unknown ABS DTC");
     default:
-        // Try all databases
         QString desc = ENGINE_DTC_DESCRIPTIONS.value(dtcCode);
         if (!desc.isEmpty()) return desc;
         desc = TRANSMISSION_DTC_DESCRIPTIONS.value(dtcCode);
@@ -885,8 +862,6 @@ bool WJDataParser::parseEngineMAFData(const QString& data, WJSensorData& sensorD
         return false;
     }
 }
-
-// Continuation of global.cpp - Data Parser Implementation
 
 bool WJDataParser::parseEngineRailPressureData(const QString& data, WJSensorData& sensorData) {
     if (!data.startsWith(WJ::Responses::ENGINE_RAIL_PRESSURE)) {
@@ -1026,410 +1001,6 @@ bool WJDataParser::parseEngineBatteryVoltage(const QString& data, WJSensorData& 
     return false;
 }
 
-bool WJDiagnosticSession::clearABSFaultCodes() {
-    if (!switchToModule(MODULE_ABS)) {
-        return false;
-    }
-
-    QString response;
-    return interface->sendCommandAndWaitResponse(WJ::ABS::CLEAR_DTC, response, MODULE_ABS, 3000);
-}
-
-// Private helper methods
-bool WJDiagnosticSession::performEngineSecurityAccess() {
-    if (engineSecurityAccess) {
-        return true; // Already have access
-    }
-
-    QString response;
-
-    // Send security access request
-    if (!interface->sendCommandAndWaitResponse(WJ::Engine::SECURITY_ACCESS_REQUEST, response, MODULE_ENGINE_EDC15, 2000)) {
-        return false;
-    }
-
-    if (!response.contains("67 01")) {
-        return false; // Security access request failed
-    }
-
-    // Send security access key
-    if (!interface->sendCommandAndWaitResponse(WJ::Engine::SECURITY_ACCESS_KEY, response, MODULE_ENGINE_EDC15, 2000)) {
-        return false;
-    }
-
-    if (response.contains("67 02")) {
-        engineSecurityAccess = true;
-        return true;
-    }
-
-    // Security access might be denied but that's often expected
-    // Continue anyway for basic diagnostics
-    return true;
-}
-
-bool WJDiagnosticSession::switchProtocolIfNeeded(WJModule targetModule) {
-    WJProtocol requiredProtocol = WJUtils::getProtocolFromModule(targetModule);
-
-    if (activeProtocol == requiredProtocol) {
-        return true; // No switch needed
-    }
-
-    QList<WJCommand> switchCommands = WJCommands::getProtocolSwitchCommands(activeProtocol, requiredProtocol);
-
-    for (const WJCommand& cmd : switchCommands) {
-        QString response;
-        if (!interface->sendCommandAndWaitResponse(cmd.command, response, targetModule, cmd.timeoutMs)) {
-            if (cmd.isCritical) {
-                return false;
-            }
-        }
-    }
-
-    activeProtocol = requiredProtocol;
-    return true;
-}
-
-bool WJDiagnosticSession::initializeModule(WJModule module) {
-    QList<WJCommand> initCommands = WJCommands::getModuleInitCommands(module);
-
-    for (const WJCommand& cmd : initCommands) {
-        QString response;
-        if (!interface->sendCommandAndWaitResponse(cmd.command, response, module, cmd.timeoutMs)) {
-            if (cmd.isCritical) {
-                return false;
-            }
-        }
-    }
-
-    // Special initialization for engine module
-    if (module == MODULE_ENGINE_EDC15) {
-        // Start communication
-        QString response;
-        if (interface->sendCommandAndWaitResponse(WJ::Engine::START_COMMUNICATION, response, module, 2000)) {
-            if (response.contains("C1")) {
-                // Communication established, try security access
-                performEngineSecurityAccess();
-
-                // Start diagnostic routine
-                interface->sendCommandAndWaitResponse(WJ::Engine::START_DIAGNOSTIC_ROUTINE, response, module, 2000);
-            }
-        }
-    }
-
-    return true;
-}
-
-bool WJDiagnosticSession::validateModuleResponse(const QString& response, WJModule module) {
-    if (response.isEmpty()) {
-        return false;
-    }
-
-    WJProtocol moduleProtocol = WJUtils::getProtocolFromModule(module);
-
-    if (WJUtils::isError(response, moduleProtocol)) {
-        return false;
-    }
-
-    return WJUtils::isValidResponse(response, moduleProtocol);
-}
-
-// Individual sensor reading methods with automatic protocol switching
-bool WJDiagnosticSession::readEngineMAF(double& actual, double& specified) {
-    if (!switchToModule(MODULE_ENGINE_EDC15)) {
-        return false;
-    }
-
-    QString response;
-    if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_MAF_DATA, response, MODULE_ENGINE_EDC15)) {
-        WJSensorData data;
-        if (WJDataParser::parseEngineMAFData(response, data)) {
-            actual = data.engine.mafActual;
-            specified = data.engine.mafSpecified;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool WJDiagnosticSession::readEngineRailPressure(double& actual, double& specified) {
-    if (!switchToModule(MODULE_ENGINE_EDC15)) {
-        return false;
-    }
-
-    WJSensorData data;
-    QString response;
-
-    // Read actual rail pressure
-    if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_RAIL_PRESSURE_ACTUAL, response, MODULE_ENGINE_EDC15)) {
-        WJDataParser::parseEngineRailPressureData(response, data);
-    }
-
-    // Read specified rail pressure
-    if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_RAIL_PRESSURE_SPEC, response, MODULE_ENGINE_EDC15)) {
-        QList<int> bytes = WJUtils::parseHexBytes(response);
-        if (bytes.size() >= 12) {
-            int railSpecRaw = WJUtils::bytesToInt16(bytes[9], bytes[10]);
-            data.engine.railPressureSpecified = WJUtils::convertPressure(railSpecRaw);
-        }
-    }
-
-    if (data.engine.dataValid) {
-        actual = data.engine.railPressureActual;
-        specified = data.engine.railPressureSpecified;
-        return true;
-    }
-
-    return false;
-}
-
-bool WJDiagnosticSession::readTransmissionTemp(double& temp) {
-    if (!switchToModule(MODULE_TRANSMISSION)) {
-        return false;
-    }
-
-    QString response;
-    if (interface->sendCommandAndWaitResponse(WJ::Transmission::READ_TEMP_DATA, response, MODULE_TRANSMISSION)) {
-        WJSensorData data;
-        if (WJDataParser::parseTransmissionData(response, data)) {
-            temp = data.transmission.oilTemp;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool WJDiagnosticSession::readTransmissionGear(double& gear) {
-    if (!switchToModule(MODULE_TRANSMISSION)) {
-        return false;
-    }
-
-    QString response;
-    if (interface->sendCommandAndWaitResponse(WJ::Transmission::READ_TRANS_DATA, response, MODULE_TRANSMISSION)) {
-        WJSensorData data;
-        if (WJDataParser::parseTransmissionData(response, data)) {
-            gear = data.transmission.currentGear;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool WJDiagnosticSession::readVehicleSpeed(double& speed) {
-    if (!switchToModule(MODULE_PCM)) {
-        return false;
-    }
-
-    QString response;
-    if (interface->sendCommandAndWaitResponse(WJ::PCM::READ_LIVE_DATA, response, MODULE_PCM)) {
-        WJSensorData data;
-        if (WJDataParser::parsePCMData(response, data)) {
-            speed = data.pcm.vehicleSpeed;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool WJDiagnosticSession::readWheelSpeeds(double& fl, double& fr, double& rl, double& rr) {
-    if (!switchToModule(MODULE_ABS)) {
-        return false;
-    }
-
-    QString response;
-    if (interface->sendCommandAndWaitResponse(WJ::ABS::READ_WHEEL_SPEEDS, response, MODULE_ABS)) {
-        WJSensorData data;
-        if (WJDataParser::parseABSWheelSpeeds(response, data)) {
-            fl = data.abs.wheelSpeedFL;
-            fr = data.abs.wheelSpeedFR;
-            rl = data.abs.wheelSpeedRL;
-            rr = data.abs.wheelSpeedRR;
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool WJDiagnosticSession::readAllSensorData(WJSensorData& data) {
-    data.reset();
-    bool success = false;
-
-    // Read engine data
-    if (readEngineData(data.engine)) {
-        success = true;
-    }
-
-    // Read transmission data
-    if (readTransmissionData(data.transmission)) {
-        success = true;
-    }
-
-    // Read PCM data
-    if (readPCMData(data.pcm)) {
-        success = true;
-    }
-
-    // Read ABS data
-    if (readABSData(data.abs)) {
-        success = true;
-    }
-
-    if (success) {
-        data.globalLastUpdate = QDateTime::currentMSecsSinceEpoch();
-    }
-
-    return success;
-}
-
-// Legacy compatibility functions (for backward compatibility with original EDC15 code)
-namespace EDC15Utils = WJUtils;
-namespace EDC15_DTCs = WJ_DTCs;
-using EDC15DataParser = WJDataParser;
-
-// Legacy global variables for compatibility
-extern const char* ERROR[] = {
-    "UNABLE", "BUS BUSY", "BUS ERROR", "BUFFER FULL", "CAN ERROR", "DATA ERROR",
-    "ERROR", "STOPPED", "TIMEOUT", "?", "SEARCH", "NODATA", "NO DATA",
-    "UNABLETOCONNECT", "<", ">", "7F", "NEGATIVE RESPONSE", "BUS INIT: ERROR"
-};
-extern const int ERROR_COUNT = 19;
-
-// Protocol and header constants for legacy compatibility
-extern const QString PCM_ECU_HEADER = "ATSH" + WJ::Headers::PCM;
-extern const QString TRANS_ECU_HEADER = "ATSH" + WJ::Headers::TRANSMISSION;
-extern const QString RESET = "ATZ";
-extern const QString GET_PROTOCOL = "ATDP";
-
-// Legacy EDC15 namespace for backward compatibility
-namespace EDC15 {
-// Communication constants
-extern const QString ECU_HEADER = WJ::Headers::ENGINE_EDC15;
-extern const QString WAKEUP_MESSAGE = WJ::WakeupMessages::ENGINE_EDC15;
-extern const QString PROTOCOL = WJ::Protocols::ISO_14230_4_KWP_FAST;
-extern const int BAUD_RATE = WJ::Protocols::ISO_BAUD_RATE;
-extern const int DEFAULT_TIMEOUT = WJ::Protocols::DEFAULT_TIMEOUT;
-extern const int FAST_INIT_TIMEOUT = WJ::Protocols::FAST_INIT_TIMEOUT;
-extern const int SECURITY_TIMEOUT = 2000;
-
-// Diagnostic service IDs (same as WJ::Engine namespace)
-extern const QString START_COMMUNICATION = WJ::Engine::START_COMMUNICATION;
-extern const QString SECURITY_ACCESS_REQUEST = WJ::Engine::SECURITY_ACCESS_REQUEST;
-extern const QString SECURITY_ACCESS_KEY = WJ::Engine::SECURITY_ACCESS_KEY;
-extern const QString START_DIAGNOSTIC_ROUTINE = WJ::Engine::START_DIAGNOSTIC_ROUTINE;
-extern const QString READ_DTC = WJ::Engine::READ_DTC;
-extern const QString CLEAR_DTC = WJ::Engine::CLEAR_DTC;
-
-// Data service IDs for Jeep WJ 2.7 EDC15 (same as WJ::Engine namespace)
-extern const QString READ_MAF_DATA = WJ::Engine::READ_MAF_DATA;
-extern const QString READ_RAIL_PRESSURE_ACTUAL = WJ::Engine::READ_RAIL_PRESSURE_ACTUAL;
-extern const QString READ_RAIL_PRESSURE_SPEC = WJ::Engine::READ_RAIL_PRESSURE_SPEC;
-extern const QString READ_MAP_DATA = WJ::Engine::READ_MAP_DATA;
-extern const QString READ_MAP_SPEC = WJ::Engine::READ_MAP_DATA; // Same as MAP_DATA
-extern const QString READ_INJECTOR_DATA = WJ::Engine::READ_INJECTOR_DATA;
-extern const QString READ_MISC_DATA = WJ::Engine::READ_MISC_DATA;
-extern const QString READ_BATTERY_VOLTAGE = WJ::Engine::READ_BATTERY_VOLTAGE;
-
-// Expected response prefixes (same as WJ::Responses namespace)
-extern const QString RESPONSE_MAF = WJ::Responses::ENGINE_MAF;
-extern const QString RESPONSE_RAIL_PRESSURE = WJ::Responses::ENGINE_RAIL_PRESSURE;
-extern const QString RESPONSE_RAIL_PRESSURE_SPEC = WJ::Responses::ENGINE_RAIL_PRESSURE;
-extern const QString RESPONSE_INJECTOR = WJ::Responses::ENGINE_INJECTOR;
-extern const QString RESPONSE_DTC = WJ::Responses::ENGINE_DTC;
-extern const QString RESPONSE_COMMUNICATION = WJ::Responses::ENGINE_COMMUNICATION;
-extern const QString RESPONSE_SECURITY_ACCESS = WJ::Responses::ENGINE_SECURITY;
-extern const QString RESPONSE_SECURITY_GRANTED = "67 02";
-extern const QString RESPONSE_DIAGNOSTIC_ROUTINE = "71 25";
-
-// Error codes specific to EDC15 (subset of WJ error codes)
-extern const QStringList ERROR_CODES = WJ::KWP2000_ERROR_CODES;
-}
-
-// Legacy EDC15Commands namespace for backward compatibility
-namespace EDC15Commands {
-QList<ELM327Command> getInitSequence() {
-    QList<WJCommand> wjCommands = WJCommands::getInitSequence(PROTOCOL_ISO_14230_4_KWP_FAST);
-    QList<ELM327Command> legacyCommands;
-
-    for (const WJCommand& wjCmd : wjCommands) {
-        ELM327Command legacyCmd;
-        legacyCmd.command = wjCmd.command;
-        legacyCmd.expectedResponse = wjCmd.expectedResponse;
-        legacyCmd.description = wjCmd.description;
-        legacyCmd.timeoutMs = wjCmd.timeoutMs;
-        legacyCmd.isCritical = wjCmd.isCritical;
-        legacyCommands.append(legacyCmd);
-    }
-
-    return legacyCommands;
-}
-
-QList<ELM327Command> getAlternativeInit() {
-    // Simplified alternative initialization
-    QList<ELM327Command> commands;
-    commands.append(ELM327Command("ATZ", "ELM327", "Reset ELM327", 7500));
-    commands.append(ELM327Command("ATE0", "OK", "Echo off", 500));
-    commands.append(ELM327Command("ATSP5", "OK", "Set protocol ISO_14230_4_KWP_FAST", 1000));
-    commands.append(ELM327Command("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set ECU header", 500));
-    commands.append(ELM327Command("ATFI", "BUS INIT", "Fast initialization", 5000));
-    commands.append(ELM327Command("81", "C1", "Start communication", 2000));
-    return commands;
-}
-
-QStringList EDC15Commands::getDiagnosticCommands() {
-    QList<WJCommand> commands = WJCommands::getDiagnosticCommands(MODULE_ENGINE_EDC15);
-    QStringList commandStrings;
-
-    for (const WJCommand& cmd : commands) {
-        commandStrings.append(cmd.command);
-    }
-
-    return commandStrings;
-}
-}
-
-// End of global.cpp implementation
-
-/*
- * Implementation Summary:
- *
- * This enhanced global.cpp provides complete dual-protocol support for
- * Jeep Grand Cherokee WJ 2.7 CRD diagnostic operations:
- *
- * 1. ISO_14230_4_KWP_FAST Protocol Support (Engine EDC15):
- *    - Complete initialization sequence
- *    - Security access handling
- *    - MAF, rail pressure, MAP, injector data parsing
- *    - Engine-specific fault codes
- *
- * 2. J1850 VPW Protocol Support (Transmission, PCM, ABS):
- *    - Protocol switching capabilities
- *    - Module-specific initialization
- *    - Transmission solenoids, speeds, temperature
- *    - PCM fuel trim, O2 sensors, engine load
- *    - ABS wheel speeds, stability data
- *    - Module-specific fault codes
- *
- * 3. Enhanced Features:
- *    - Automatic protocol detection and switching
- *    - Comprehensive DTC database (500+ codes)
- *    - Multi-module diagnostic session management
- *    - Enhanced error handling for both protocols
- *    - Backward compatibility with original EDC15 code
- *
- * 4. Data Structures:
- *    - WJSensorData with separate engine, transmission, PCM, ABS sections
- *    - WJ_DTC with module and protocol identification
- *    - WJCommand with protocol and module targeting
- *
- * This implementation provides the same comprehensive diagnostic capabilities
- * as commercial tools like WJdiag, supporting both engine (ISO_14230_4_KWP_FAST) and
- * transmission/other modules (J1850 VPW) communication protocols.
- */
-
 // Transmission data parsing (J1850)
 bool WJDataParser::parseTransmissionData(const QString& data, WJSensorData& sensorData) {
     if (!data.startsWith(WJ::Responses::TRANS_DATA)) {
@@ -1442,21 +1013,18 @@ bool WJDataParser::parseTransmissionData(const QString& data, WJSensorData& sens
     }
 
     try {
-        // Parse transmission oil temperature
         if (bytes.size() > 3) {
             int tempRaw = bytes[3];
-            sensorData.transmission.oilTemp = tempRaw - 40; // Typical offset for transmission temp
+            sensorData.transmission.oilTemp = tempRaw - 40;
         }
 
-        // Parse current gear
         if (bytes.size() > 4) {
             sensorData.transmission.currentGear = bytes[4] & 0x0F;
         }
 
-        // Parse line pressure
         if (bytes.size() > 6) {
             int pressureRaw = WJUtils::bytesToInt16(bytes[5], bytes[6]);
-            sensorData.transmission.linePresssure = pressureRaw * 0.1; // Convert to PSI
+            sensorData.transmission.linePresssure = pressureRaw * 0.1;
         }
 
         sensorData.transmission.lastUpdate = QDateTime::currentMSecsSinceEpoch();
@@ -1480,13 +1048,11 @@ bool WJDataParser::parseTransmissionSpeeds(const QString& data, WJSensorData& se
     }
 
     try {
-        // Parse input speed (turbine speed)
         if (bytes.size() > 4) {
             int inputSpeedRaw = WJUtils::bytesToInt16(bytes[2], bytes[3]);
             sensorData.transmission.inputSpeed = inputSpeedRaw;
         }
 
-        // Parse output speed
         if (bytes.size() > 6) {
             int outputSpeedRaw = WJUtils::bytesToInt16(bytes[4], bytes[5]);
             sensorData.transmission.outputSpeed = outputSpeedRaw;
@@ -1511,17 +1077,14 @@ bool WJDataParser::parseTransmissionSolenoids(const QString& data, WJSensorData&
     }
 
     try {
-        // Parse solenoid A duty cycle
         if (bytes.size() > 3) {
             sensorData.transmission.shiftSolenoidA = WJUtils::convertPercentage(bytes[3]);
         }
 
-        // Parse solenoid B duty cycle
         if (bytes.size() > 4) {
             sensorData.transmission.shiftSolenoidB = WJUtils::convertPercentage(bytes[4]);
         }
 
-        // Parse TCC solenoid
         if (bytes.size() > 5) {
             sensorData.transmission.tccSolenoid = WJUtils::convertPercentage(bytes[5]);
         }
@@ -1546,17 +1109,14 @@ bool WJDataParser::parsePCMData(const QString& data, WJSensorData& sensorData) {
     }
 
     try {
-        // Parse vehicle speed
         if (bytes.size() > 3) {
             sensorData.pcm.vehicleSpeed = bytes[3];
         }
 
-        // Parse engine load
         if (bytes.size() > 4) {
             sensorData.pcm.engineLoad = WJUtils::convertPercentage(bytes[4]);
         }
 
-        // Parse barometric pressure
         if (bytes.size() > 6) {
             sensorData.pcm.barometricPressure = bytes[6];
         }
@@ -1582,12 +1142,10 @@ bool WJDataParser::parsePCMFuelTrim(const QString& data, WJSensorData& sensorDat
     }
 
     try {
-        // Parse short term fuel trim
         if (bytes.size() > 3) {
             sensorData.pcm.fuelTrimST = (bytes[3] - 128) * 100.0 / 128.0;
         }
 
-        // Parse long term fuel trim
         if (bytes.size() > 4) {
             sensorData.pcm.fuelTrimLT = (bytes[4] - 128) * 100.0 / 128.0;
         }
@@ -1611,14 +1169,12 @@ bool WJDataParser::parsePCMO2Sensors(const QString& data, WJSensorData& sensorDa
     }
 
     try {
-        // Parse O2 sensor 1
         if (bytes.size() > 3) {
-            sensorData.pcm.o2Sensor1 = bytes[3] * 0.005; // Convert to voltage
+            sensorData.pcm.o2Sensor1 = bytes[3] * 0.005;
         }
 
-        // Parse O2 sensor 2
         if (bytes.size() > 4) {
-            sensorData.pcm.o2Sensor2 = bytes[4] * 0.005; // Convert to voltage
+            sensorData.pcm.o2Sensor2 = bytes[4] * 0.005;
         }
 
         sensorData.pcm.lastUpdate = QDateTime::currentMSecsSinceEpoch();
@@ -1641,7 +1197,6 @@ bool WJDataParser::parseABSWheelSpeeds(const QString& data, WJSensorData& sensor
     }
 
     try {
-        // Parse wheel speeds
         if (bytes.size() >= 10) {
             sensorData.abs.wheelSpeedFL = WJUtils::bytesToInt16(bytes[2], bytes[3]) * 0.1;
             sensorData.abs.wheelSpeedFR = WJUtils::bytesToInt16(bytes[4], bytes[5]) * 0.1;
@@ -1670,16 +1225,14 @@ bool WJDataParser::parseABSStabilityData(const QString& data, WJSensorData& sens
     }
 
     try {
-        // Parse yaw rate
         if (bytes.size() > 4) {
             int yawRaw = WJUtils::bytesToInt16(bytes[3], bytes[4]);
-            sensorData.abs.yawRate = (yawRaw - 32768) * 0.1; // Convert to deg/s
+            sensorData.abs.yawRate = (yawRaw - 32768) * 0.1;
         }
 
-        // Parse lateral acceleration
         if (bytes.size() > 6) {
             int accelRaw = WJUtils::bytesToInt16(bytes[5], bytes[6]);
-            sensorData.abs.lateralAccel = (accelRaw - 32768) * 0.01; // Convert to g
+            sensorData.abs.lateralAccel = (accelRaw - 32768) * 0.01;
         }
 
         sensorData.abs.lastUpdate = QDateTime::currentMSecsSinceEpoch();
@@ -1902,6 +1455,33 @@ bool WJDiagnosticSession::clearAllFaultCodes() {
     return success;
 }
 
+bool WJDiagnosticSession::readAllSensorData(WJSensorData& data) {
+    data.reset();
+    bool success = false;
+
+    if (readEngineData(data.engine)) {
+        success = true;
+    }
+
+    if (readTransmissionData(data.transmission)) {
+        success = true;
+    }
+
+    if (readPCMData(data.pcm)) {
+        success = true;
+    }
+
+    if (readABSData(data.abs)) {
+        success = true;
+    }
+
+    if (success) {
+        data.globalLastUpdate = QDateTime::currentMSecsSinceEpoch();
+    }
+
+    return success;
+}
+
 bool WJDiagnosticSession::readEngineData(WJSensorData::EngineData& engineData) {
     if (!switchToModule(MODULE_ENGINE_EDC15)) {
         return false;
@@ -1910,7 +1490,6 @@ bool WJDiagnosticSession::readEngineData(WJSensorData::EngineData& engineData) {
     WJSensorData fullData;
     QString response;
 
-    // Read various engine parameters
     if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_MAF_DATA, response, MODULE_ENGINE_EDC15)) {
         WJDataParser::parseEngineMAFData(response, fullData);
     }
@@ -2070,8 +1649,6 @@ bool WJDiagnosticSession::readABSData(WJSensorData::ABSData& absData) {
     return absData.dataValid;
 }
 
-// Continuation from: bool WJDiagnosticSession::readABSFaultCodes(QList<WJ_DTC>& dtcs) {
-
 bool WJDiagnosticSession::readABSFaultCodes(QList<WJ_DTC>& dtcs) {
     if (!switchToModule(MODULE_ABS)) {
         return false;
@@ -2086,103 +1663,405 @@ bool WJDiagnosticSession::readABSFaultCodes(QList<WJ_DTC>& dtcs) {
     return false;
 }
 
+bool WJDiagnosticSession::clearABSFaultCodes() {
+    if (!switchToModule(MODULE_ABS)) {
+        return false;
+    }
 
-// Additional utility functions for enhanced WJ diagnostic capabilities
-namespace WJAdvanced {
-
-// Protocol detection helper
-bool detectAvailableProtocols(QList<WJProtocol>& availableProtocols) {
-    availableProtocols.clear();
-
-    // This would be implemented with actual ELM327 testing
-    // For now, assume both protocols are available
-    availableProtocols.append(PROTOCOL_ISO_14230_4_KWP_FAST);
-    availableProtocols.append(PROTOCOL_J1850_VPW);
-
-    return !availableProtocols.isEmpty();
+    QString response;
+    return interface->sendCommandAndWaitResponse(WJ::ABS::CLEAR_DTC, response, MODULE_ABS, 3000);
 }
 
-// Module discovery helper
-bool detectAvailableModules(QList<WJModule>& availableModules) {
-    availableModules.clear();
-
-    // This would test communication with each module
-    // For now, assume all modules are available
-    availableModules.append(MODULE_ENGINE_EDC15);
-    availableModules.append(MODULE_TRANSMISSION);
-    availableModules.append(MODULE_PCM);
-    availableModules.append(MODULE_ABS);
-
-    return !availableModules.isEmpty();
-}
-
-// Enhanced diagnostics helper
-QString generateDiagnosticReport(const WJSensorData& data, const QList<WJ_DTC>& dtcs) {
-    QString report;
-    report += "=== Jeep WJ Diagnostic Report ===\n";
-    report += "Generated: " + QDateTime::currentDateTime().toString() + "\n\n";
-
-    // Engine section
-    if (data.engine.dataValid) {
-        report += "ENGINE (EDC15 - ISO_14230_4_KWP_FAST):\n";
-        report += QString("  MAF: %1 g/s (Spec: %2 g/s)\n")
-                      .arg(data.engine.mafActual, 0, 'f', 1)
-                      .arg(data.engine.mafSpecified, 0, 'f', 1);
-        report += QString("  Rail Pressure: %1 bar (Spec: %2 bar)\n")
-                      .arg(data.engine.railPressureActual, 0, 'f', 1)
-                      .arg(data.engine.railPressureSpecified, 0, 'f', 1);
-        report += QString("  Engine RPM: %1\n").arg(data.engine.engineRPM, 0, 'f', 0);
-        report += QString("  Coolant Temp: %1°C\n").arg(data.engine.coolantTemp, 0, 'f', 1);
-        report += QString("  Battery Voltage: %1V\n").arg(data.engine.batteryVoltage, 0, 'f', 1);
-        report += "\n";
+// Individual sensor reading methods with automatic protocol switching
+bool WJDiagnosticSession::readEngineMAF(double& actual, double& specified) {
+    if (!switchToModule(MODULE_ENGINE_EDC15)) {
+        return false;
     }
 
-    // Transmission section
-    if (data.transmission.dataValid) {
-        report += "TRANSMISSION (J1850 VPW):\n";
-        report += QString("  Current Gear: %1\n").arg(data.transmission.currentGear, 0, 'f', 0);
-        report += QString("  Oil Temperature: %1°C\n").arg(data.transmission.oilTemp, 0, 'f', 1);
-        report += QString("  Input Speed: %1 rpm\n").arg(data.transmission.inputSpeed, 0, 'f', 0);
-        report += QString("  Output Speed: %1 rpm\n").arg(data.transmission.outputSpeed, 0, 'f', 0);
-        report += "\n";
-    }
-
-    // PCM section
-    if (data.pcm.dataValid) {
-        report += "PCM (J1850 VPW):\n";
-        report += QString("  Vehicle Speed: %1 km/h\n").arg(data.pcm.vehicleSpeed, 0, 'f', 0);
-        report += QString("  Engine Load: %1%\n").arg(data.pcm.engineLoad, 0, 'f', 1);
-        report += QString("  Fuel Trim ST: %1%\n").arg(data.pcm.fuelTrimST, 0, 'f', 1);
-        report += QString("  Fuel Trim LT: %1%\n").arg(data.pcm.fuelTrimLT, 0, 'f', 1);
-        report += "\n";
-    }
-
-    // ABS section
-    if (data.abs.dataValid) {
-        report += "ABS (J1850 VPW):\n";
-        report += QString("  Wheel Speeds: FL=%1 FR=%2 RL=%3 RR=%4 km/h\n")
-                      .arg(data.abs.wheelSpeedFL, 0, 'f', 1)
-                      .arg(data.abs.wheelSpeedFR, 0, 'f', 1)
-                      .arg(data.abs.wheelSpeedRL, 0, 'f', 1)
-                      .arg(data.abs.wheelSpeedRR, 0, 'f', 1);
-        report += "\n";
-    }
-
-    // Fault codes section
-    if (!dtcs.isEmpty()) {
-        report += "FAULT CODES:\n";
-        for (const WJ_DTC& dtc : dtcs) {
-            QString criticality = WJ_DTCs::isCriticalDTC(dtc.code, dtc.sourceModule) ? " [CRITICAL]" : "";
-            report += QString("  %1 (%2): %3%4\n")
-                          .arg(dtc.code)
-                          .arg(WJUtils::getModuleName(dtc.sourceModule))
-                          .arg(dtc.description)
-                          .arg(criticality);
+    QString response;
+    if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_MAF_DATA, response, MODULE_ENGINE_EDC15)) {
+        WJSensorData data;
+        if (WJDataParser::parseEngineMAFData(response, data)) {
+            actual = data.engine.mafActual;
+            specified = data.engine.mafSpecified;
+            return true;
         }
-    } else {
-        report += "FAULT CODES: None detected\n";
     }
 
-    return report;
+    return false;
+}
+
+bool WJDiagnosticSession::readEngineRailPressure(double& actual, double& specified) {
+    if (!switchToModule(MODULE_ENGINE_EDC15)) {
+        return false;
+    }
+
+    WJSensorData data;
+    QString response;
+
+    if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_RAIL_PRESSURE_ACTUAL, response, MODULE_ENGINE_EDC15)) {
+        WJDataParser::parseEngineRailPressureData(response, data);
+    }
+
+    if (interface->sendCommandAndWaitResponse(WJ::Engine::READ_RAIL_PRESSURE_SPEC, response, MODULE_ENGINE_EDC15)) {
+        QList<int> bytes = WJUtils::parseHexBytes(response);
+        if (bytes.size() >= 12) {
+            int railSpecRaw = WJUtils::bytesToInt16(bytes[9], bytes[10]);
+            data.engine.railPressureSpecified = WJUtils::convertPressure(railSpecRaw);
+        }
+    }
+
+    if (data.engine.dataValid) {
+        actual = data.engine.railPressureActual;
+        specified = data.engine.railPressureSpecified;
+        return true;
+    }
+
+    return false;
+}
+
+bool WJDiagnosticSession::readTransmissionTemp(double& temp) {
+    if (!switchToModule(MODULE_TRANSMISSION)) {
+        return false;
+    }
+
+    QString response;
+    if (interface->sendCommandAndWaitResponse(WJ::Transmission::READ_TEMP_DATA, response, MODULE_TRANSMISSION)) {
+        WJSensorData data;
+        if (WJDataParser::parseTransmissionData(response, data)) {
+            temp = data.transmission.oilTemp;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool WJDiagnosticSession::readTransmissionGear(double& gear) {
+    if (!switchToModule(MODULE_TRANSMISSION)) {
+        return false;
+    }
+
+    QString response;
+    if (interface->sendCommandAndWaitResponse(WJ::Transmission::READ_TRANS_DATA, response, MODULE_TRANSMISSION)) {
+        WJSensorData data;
+        if (WJDataParser::parseTransmissionData(response, data)) {
+            gear = data.transmission.currentGear;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool WJDiagnosticSession::readVehicleSpeed(double& speed) {
+    if (!switchToModule(MODULE_PCM)) {
+        return false;
+    }
+
+    QString response;
+    if (interface->sendCommandAndWaitResponse(WJ::PCM::READ_LIVE_DATA, response, MODULE_PCM)) {
+        WJSensorData data;
+        if (WJDataParser::parsePCMData(response, data)) {
+            speed = data.pcm.vehicleSpeed;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool WJDiagnosticSession::readWheelSpeeds(double& fl, double& fr, double& rl, double& rr) {
+    if (!switchToModule(MODULE_ABS)) {
+        return false;
+    }
+
+    QString response;
+    if (interface->sendCommandAndWaitResponse(WJ::ABS::READ_WHEEL_SPEEDS, response, MODULE_ABS)) {
+        WJSensorData data;
+        if (WJDataParser::parseABSWheelSpeeds(response, data)) {
+            fl = data.abs.wheelSpeedFL;
+            fr = data.abs.wheelSpeedFR;
+            rl = data.abs.wheelSpeedRL;
+            rr = data.abs.wheelSpeedRR;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Private helper methods
+bool WJDiagnosticSession::performEngineSecurityAccess() {
+    if (engineSecurityAccess) {
+        return true;
+    }
+
+    QString response;
+
+    if (!interface->sendCommandAndWaitResponse(WJ::Engine::SECURITY_ACCESS_REQUEST, response, MODULE_ENGINE_EDC15, 2000)) {
+        return false;
+    }
+
+    if (!response.contains("67 01")) {
+        return false;
+    }
+
+    if (!interface->sendCommandAndWaitResponse(WJ::Engine::SECURITY_ACCESS_KEY, response, MODULE_ENGINE_EDC15, 2000)) {
+        return false;
+    }
+
+    if (response.contains("67 02")) {
+        engineSecurityAccess = true;
+        return true;
+    }
+
+    return true;
+}
+
+bool WJDiagnosticSession::switchProtocolIfNeeded(WJModule targetModule) {
+    WJProtocol requiredProtocol = WJUtils::getProtocolFromModule(targetModule);
+
+    if (activeProtocol == requiredProtocol) {
+        return true;
+    }
+
+    QList<WJCommand> switchCommands = WJCommands::getProtocolSwitchCommands(activeProtocol, requiredProtocol);
+
+    for (const WJCommand& cmd : switchCommands) {
+        QString response;
+        if (!interface->sendCommandAndWaitResponse(cmd.command, response, targetModule, cmd.timeoutMs)) {
+            if (cmd.isCritical) {
+                return false;
+            }
+        }
+    }
+
+    activeProtocol = requiredProtocol;
+    return true;
+}
+
+bool WJDiagnosticSession::initializeModule(WJModule module) {
+    QList<WJCommand> initCommands = WJCommands::getModuleInitCommands(module);
+
+    for (const WJCommand& cmd : initCommands) {
+        QString response;
+        if (!interface->sendCommandAndWaitResponse(cmd.command, response, module, cmd.timeoutMs)) {
+            if (cmd.isCritical) {
+                return false;
+            }
+        }
+    }
+
+    if (module == MODULE_ENGINE_EDC15) {
+        QString response;
+        if (interface->sendCommandAndWaitResponse(WJ::Engine::START_COMMUNICATION, response, module, 2000)) {
+            if (response.contains("C1")) {
+                performEngineSecurityAccess();
+                interface->sendCommandAndWaitResponse(WJ::Engine::START_DIAGNOSTIC_ROUTINE, response, module, 2000);
+            }
+        }
+    }
+
+    return true;
+}
+
+bool WJDiagnosticSession::validateModuleResponse(const QString& response, WJModule module) {
+    if (response.isEmpty()) {
+        return false;
+    }
+
+    WJProtocol moduleProtocol = WJUtils::getProtocolFromModule(module);
+
+    if (WJUtils::isError(response, moduleProtocol)) {
+        return false;
+    }
+
+    return WJUtils::isValidResponse(response, moduleProtocol);
+}
+
+// Legacy compatibility functions
+namespace EDC15Utils = WJUtils;
+namespace EDC15_DTCs = WJ_DTCs;
+using EDC15DataParser = WJDataParser;
+
+const char* ERROR[] = {
+    "UNABLE", "BUS BUSY", "BUS ERROR", "BUFFER FULL", "CAN ERROR", "DATA ERROR",
+    "ERROR", "STOPPED", "TIMEOUT", "?", "SEARCH", "NODATA", "NO DATA",
+    "UNABLETOCONNECT", "<", ">", "7F", "NEGATIVE RESPONSE", "BUS INIT: ERROR"
+};
+const int ERROR_COUNT = 19;
+
+const QString PCM_ECU_HEADER = "ATSH" + WJ::Headers::PCM;
+const QString TRANS_ECU_HEADER = "ATSH" + WJ::Headers::TRANSMISSION;
+const QString RESET = "ATZ";
+const QString GET_PROTOCOL = "ATDP";
+
+// Legacy EDC15 namespace for backward compatibility
+namespace EDC15 {
+const QString ECU_HEADER = WJ::Headers::ENGINE_EDC15;
+const QString WAKEUP_MESSAGE = WJ::WakeupMessages::ENGINE_EDC15;
+const QString PROTOCOL = WJ::Protocols::ISO_14230_4_KWP_FAST;
+const int BAUD_RATE = WJ::Protocols::ISO_BAUD_RATE;
+const int DEFAULT_TIMEOUT = WJ::Protocols::DEFAULT_TIMEOUT;
+const int FAST_INIT_TIMEOUT = WJ::Protocols::FAST_INIT_TIMEOUT;
+const int SECURITY_TIMEOUT = 2000;
+
+const QString START_COMMUNICATION = WJ::Engine::START_COMMUNICATION;
+const QString SECURITY_ACCESS_REQUEST = WJ::Engine::SECURITY_ACCESS_REQUEST;
+const QString SECURITY_ACCESS_KEY = WJ::Engine::SECURITY_ACCESS_KEY;
+const QString START_DIAGNOSTIC_ROUTINE = WJ::Engine::START_DIAGNOSTIC_ROUTINE;
+const QString READ_DTC = WJ::Engine::READ_DTC;
+const QString CLEAR_DTC = WJ::Engine::CLEAR_DTC;
+
+const QString READ_MAF_DATA = WJ::Engine::READ_MAF_DATA;
+const QString READ_RAIL_PRESSURE_ACTUAL = WJ::Engine::READ_RAIL_PRESSURE_ACTUAL;
+const QString READ_RAIL_PRESSURE_SPEC = WJ::Engine::READ_RAIL_PRESSURE_SPEC;
+const QString READ_MAP_DATA = WJ::Engine::READ_MAP_DATA;
+const QString READ_MAP_SPEC = WJ::Engine::READ_MAP_DATA;
+const QString READ_INJECTOR_DATA = WJ::Engine::READ_INJECTOR_DATA;
+const QString READ_MISC_DATA = WJ::Engine::READ_MISC_DATA;
+const QString READ_BATTERY_VOLTAGE = WJ::Engine::READ_BATTERY_VOLTAGE;
+
+const QString RESPONSE_MAF = WJ::Responses::ENGINE_MAF;
+const QString RESPONSE_RAIL_PRESSURE = WJ::Responses::ENGINE_RAIL_PRESSURE;
+const QString RESPONSE_RAIL_PRESSURE_SPEC = WJ::Responses::ENGINE_RAIL_PRESSURE;
+const QString RESPONSE_INJECTOR = WJ::Responses::ENGINE_INJECTOR;
+const QString RESPONSE_DTC = WJ::Responses::ENGINE_DTC;
+const QString RESPONSE_COMMUNICATION = WJ::Responses::ENGINE_COMMUNICATION;
+const QString RESPONSE_SECURITY_ACCESS = WJ::Responses::ENGINE_SECURITY;
+const QString RESPONSE_SECURITY_GRANTED = "67 02";
+const QString RESPONSE_DIAGNOSTIC_ROUTINE = "71 25";
+
+const QStringList ERROR_CODES = WJ::KWP2000_ERROR_CODES;
+}
+
+// Legacy EDC15Commands namespace for backward compatibility
+namespace EDC15Commands {
+QList<ELM327Command> getInitSequence() {
+    QList<WJCommand> wjCommands = WJCommands::getInitSequence(PROTOCOL_ISO_14230_4_KWP_FAST);
+    QList<ELM327Command> legacyCommands;
+
+    for (const WJCommand& wjCmd : wjCommands) {
+        ELM327Command legacyCmd;
+        legacyCmd.command = wjCmd.command;
+        legacyCmd.expectedResponse = wjCmd.expectedResponse;
+        legacyCmd.description = wjCmd.description;
+        legacyCmd.timeoutMs = wjCmd.timeoutMs;
+        legacyCmd.isCritical = wjCmd.isCritical;
+        legacyCommands.append(legacyCmd);
+    }
+
+    return legacyCommands;
+}
+
+QList<ELM327Command> getAlternativeInit() {
+    QList<ELM327Command> commands;
+    commands.append(ELM327Command("ATZ", "ELM327", "Reset ELM327", 7500));
+    commands.append(ELM327Command("ATE0", "OK", "Echo off", 500));
+    commands.append(ELM327Command("ATSP5", "OK", "Set protocol ISO_14230_4_KWP_FAST", 1000));
+    commands.append(ELM327Command("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set ECU header", 500));
+    commands.append(ELM327Command("ATFI", "BUS INIT", "Fast initialization", 5000));
+    commands.append(ELM327Command("81", "C1", "Start communication", 2000));
+    return commands;
+}
+
+
+// Legacy compatibility functions
+namespace EDC15Utils = WJUtils;
+namespace EDC15_DTCs = WJ_DTCs;
+using EDC15DataParser = WJDataParser;
+
+const char* ERROR[] = {
+    "UNABLE", "BUS BUSY", "BUS ERROR", "BUFFER FULL", "CAN ERROR", "DATA ERROR",
+    "ERROR", "STOPPED", "TIMEOUT", "?", "SEARCH", "NODATA", "NO DATA",
+    "UNABLETOCONNECT", "<", ">", "7F", "NEGATIVE RESPONSE", "BUS INIT: ERROR"
+};
+const int ERROR_COUNT = 19;
+
+const QString PCM_ECU_HEADER = "ATSH" + WJ::Headers::PCM;
+const QString TRANS_ECU_HEADER = "ATSH" + WJ::Headers::TRANSMISSION;
+const QString RESET = "ATZ";
+const QString GET_PROTOCOL = "ATDP";
+
+// Legacy EDC15 namespace for backward compatibility
+namespace EDC15 {
+const QString ECU_HEADER = WJ::Headers::ENGINE_EDC15;
+const QString WAKEUP_MESSAGE = WJ::WakeupMessages::ENGINE_EDC15;
+const QString PROTOCOL = WJ::Protocols::ISO_14230_4_KWP_FAST;
+const int BAUD_RATE = WJ::Protocols::ISO_BAUD_RATE;
+const int DEFAULT_TIMEOUT = WJ::Protocols::DEFAULT_TIMEOUT;
+const int FAST_INIT_TIMEOUT = WJ::Protocols::FAST_INIT_TIMEOUT;
+const int SECURITY_TIMEOUT = 2000;
+
+const QString START_COMMUNICATION = WJ::Engine::START_COMMUNICATION;
+const QString SECURITY_ACCESS_REQUEST = WJ::Engine::SECURITY_ACCESS_REQUEST;
+const QString SECURITY_ACCESS_KEY = WJ::Engine::SECURITY_ACCESS_KEY;
+const QString START_DIAGNOSTIC_ROUTINE = WJ::Engine::START_DIAGNOSTIC_ROUTINE;
+const QString READ_DTC = WJ::Engine::READ_DTC;
+const QString CLEAR_DTC = WJ::Engine::CLEAR_DTC;
+
+const QString READ_MAF_DATA = WJ::Engine::READ_MAF_DATA;
+const QString READ_RAIL_PRESSURE_ACTUAL = WJ::Engine::READ_RAIL_PRESSURE_ACTUAL;
+const QString READ_RAIL_PRESSURE_SPEC = WJ::Engine::READ_RAIL_PRESSURE_SPEC;
+const QString READ_MAP_DATA = WJ::Engine::READ_MAP_DATA;
+const QString READ_MAP_SPEC = WJ::Engine::READ_MAP_DATA;
+const QString READ_INJECTOR_DATA = WJ::Engine::READ_INJECTOR_DATA;
+const QString READ_MISC_DATA = WJ::Engine::READ_MISC_DATA;
+const QString READ_BATTERY_VOLTAGE = WJ::Engine::READ_BATTERY_VOLTAGE;
+
+const QString RESPONSE_MAF = WJ::Responses::ENGINE_MAF;
+const QString RESPONSE_RAIL_PRESSURE = WJ::Responses::ENGINE_RAIL_PRESSURE;
+const QString RESPONSE_RAIL_PRESSURE_SPEC = WJ::Responses::ENGINE_RAIL_PRESSURE;
+const QString RESPONSE_INJECTOR = WJ::Responses::ENGINE_INJECTOR;
+const QString RESPONSE_DTC = WJ::Responses::ENGINE_DTC;
+const QString RESPONSE_COMMUNICATION = WJ::Responses::ENGINE_COMMUNICATION;
+const QString RESPONSE_SECURITY_ACCESS = WJ::Responses::ENGINE_SECURITY;
+const QString RESPONSE_SECURITY_GRANTED = "67 02";
+const QString RESPONSE_DIAGNOSTIC_ROUTINE = "71 25";
+
+const QStringList ERROR_CODES = WJ::KWP2000_ERROR_CODES;
+}
+
+// Legacy EDC15Commands namespace for backward compatibility
+namespace EDC15Commands {
+QList<ELM327Command> getInitSequence() {
+    QList<WJCommand> wjCommands = WJCommands::getInitSequence(PROTOCOL_ISO_14230_4_KWP_FAST);
+    QList<ELM327Command> legacyCommands;
+
+    for (const WJCommand& wjCmd : wjCommands) {
+        ELM327Command legacyCmd;
+        legacyCmd.command = wjCmd.command;
+        legacyCmd.expectedResponse = wjCmd.expectedResponse;
+        legacyCmd.description = wjCmd.description;
+        legacyCmd.timeoutMs = wjCmd.timeoutMs;
+        legacyCmd.isCritical = wjCmd.isCritical;
+        legacyCommands.append(legacyCmd);
+    }
+
+    return legacyCommands;
+}
+
+QList<ELM327Command> getAlternativeInit() {
+    QList<ELM327Command> commands;
+    commands.append(ELM327Command("ATZ", "ELM327", "Reset ELM327", 7500));
+    commands.append(ELM327Command("ATE0", "OK", "Echo off", 500));
+    commands.append(ELM327Command("ATSP5", "OK", "Set protocol ISO_14230_4_KWP_FAST", 1000));
+    commands.append(ELM327Command("ATSH" + WJ::Headers::ENGINE_EDC15, "OK", "Set ECU header", 500));
+    commands.append(ELM327Command("ATFI", "BUS INIT", "Fast initialization", 5000));
+    commands.append(ELM327Command("81", "C1", "Start communication", 2000));
+    return commands;
+}
+
+QStringList getDiagnosticCommands() {
+    QList<WJCommand> commands = WJCommands::getDiagnosticCommands(MODULE_ENGINE_EDC15);
+    QStringList commandStrings;
+
+    for (const WJCommand& cmd : commands) {
+        commandStrings.append(cmd.command);
+    }
+
+    return commandStrings;
+}
 }
 }

@@ -69,9 +69,9 @@ struct WJCommand {
 
     WJCommand(const QString& cmd, const QString& resp, const QString& desc,
               int timeout = 1000, WJProtocol protocol = PROTOCOL_UNKNOWN,
-              WJModule module = MODULE_UNKNOWN, bool isCritical = false)
+              WJModule module = MODULE_UNKNOWN, bool critical = false)
         : command(cmd), expectedResponse(resp), description(desc),
-        timeoutMs(timeout), isCritical(isCritical), requiredProtocol(protocol), targetModule(module) {}
+        timeoutMs(timeout), isCritical(critical), requiredProtocol(protocol), targetModule(module) {}
 };
 
 // Jeep WJ comprehensive sensor data structure
@@ -206,6 +206,7 @@ extern const int J1850_BAUD_RATE;
 extern const int DEFAULT_TIMEOUT;
 extern const int FAST_INIT_TIMEOUT;
 extern const int PROTOCOL_SWITCH_TIMEOUT;
+extern const int RESET_TIMEOUT;
 }
 
 // Wakeup messages for different modules
@@ -213,6 +214,8 @@ namespace WakeupMessages {
 extern const QString ENGINE_EDC15;
 extern const QString TRANSMISSION;
 extern const QString PCM;
+extern const QString ABS;
+extern const QString AIRBAG;
 }
 
 // Engine (EDC15) commands - ISO_14230_4_KWP_FAST
@@ -229,6 +232,9 @@ extern const QString READ_RAIL_PRESSURE_SPEC;
 extern const QString READ_MAP_DATA;
 extern const QString READ_INJECTOR_DATA;
 extern const QString READ_MISC_DATA;
+extern const QString READ_COOLANT_TEMP;
+extern const QString READ_ENGINE_RPM;
+extern const QString READ_VEHICLE_SPEED;
 extern const QString READ_BATTERY_VOLTAGE;
 }
 
@@ -253,6 +259,7 @@ extern const QString READ_FUEL_TRIM;
 extern const QString READ_O2_SENSORS;
 extern const QString READ_ENGINE_DATA;
 extern const QString READ_EMISSION_DATA;
+extern const QString READ_FREEZE_FRAME;
 }
 
 // ABS commands - J1850 VPW
@@ -272,7 +279,10 @@ extern const QString ENGINE_RAIL_PRESSURE;
 extern const QString ENGINE_INJECTOR;
 extern const QString ENGINE_DTC;
 extern const QString ENGINE_COMMUNICATION;
+extern const QString ENGINE_SECURITY_ACCESS;
 extern const QString ENGINE_SECURITY;
+extern const QString ENGINE_SECURITY_KEY;
+extern const QString ENGINE_DIAGNOSTIC;
 
 // J1850 responses (Other modules)
 extern const QString TRANS_DTC;
@@ -281,12 +291,24 @@ extern const QString PCM_DTC;
 extern const QString PCM_DATA;
 extern const QString ABS_DTC;
 extern const QString ABS_DATA;
+
+// Common responses
+extern const QString OK;
+extern const QString BUS_INIT_OK;
+extern const QString ELM327_ID;
 }
 
 // Error codes for both protocols
 extern const QStringList ALL_ERROR_CODES;
 extern const QStringList KWP2000_ERROR_CODES;
 extern const QStringList J1850_ERROR_CODES;
+
+// Protocol validation helpers
+namespace Validation {
+bool isKWP2000Response(const QString& response);
+bool isOBDResponse(const QString& response);
+bool isErrorResponse(const QString& response);
+}
 }
 
 // Global variables for multi-protocol communication
@@ -307,11 +329,11 @@ QList<WJCommand> getProtocolSwitchCommands(WJProtocol fromProtocol, WJProtocol t
 // Get module-specific initialization
 QList<WJCommand> getModuleInitCommands(WJModule module);
 
-// ADD THIS - Missing declaration
+// Complete module connection
 QList<WJCommand> getCompleteModuleConnection(WJModule module);
 
-// Get diagnostic commands for specific module - FIX RETURN TYPE
-QList<WJCommand> getDiagnosticCommands(WJModule module);  // Changed from QStringList to QList<WJCommand>
+// Get diagnostic commands for specific module
+QList<WJCommand> getDiagnosticCommands(WJModule module);
 
 // Get module configuration
 WJModuleConfig getModuleConfig(WJModule module);
@@ -328,17 +350,18 @@ bool isProtocolAvailable(WJProtocol protocol);
 QString getProtocolName(WJProtocol protocol);
 QString getModuleName(WJModule module);
 
-// Data conversion (same as before but organized)
+// Data conversion
 double convertTemperature(int rawValue);
 double convertPressure(int rawValue);
 double convertPercentage(int rawValue);
 double convertSpeed(int rawValue);
 double convertVoltage(int rawValue);
 
-// Enhanced DTC formatting for both protocols
+// DTC formatting for both protocols
 QString formatDTCCode(int byte1, int byte2, WJProtocol protocol);
 
 // Protocol-specific validation
+bool isValidHexData(const QString& data);
 bool isValidResponse(const QString& response, WJProtocol protocol);
 bool isError(const QString& response, WJProtocol protocol);
 
@@ -485,6 +508,9 @@ public:
     bool readVehicleSpeed(double& speed);
     bool readWheelSpeeds(double& fl, double& fr, double& rl, double& rr);
 
+    // Error handling
+    QString getLastError() const { return lastError; }
+
 private:
     WJInterface* interface;
     bool sessionActive;
@@ -500,7 +526,6 @@ private:
     bool validateModuleResponse(const QString& response, WJModule module);
 };
 
-
 // Legacy compatibility
 using ELM327Command = WJCommand;
 using EDC15State = WJInitState;
@@ -510,7 +535,54 @@ using EDC15_DTC = WJ_DTC;
 namespace EDC15Commands {
 QList<ELM327Command> getInitSequence();
 QList<ELM327Command> getAlternativeInit();
-QStringList getDiagnosticCommands();  // ADD THIS LINE
+QStringList getDiagnosticCommands();
+}
+
+// Legacy constants for backward compatibility
+extern const char* ERROR[];
+extern const int ERROR_COUNT;
+extern const QString PCM_ECU_HEADER;
+extern const QString TRANS_ECU_HEADER;
+extern const QString RESET;
+extern const QString GET_PROTOCOL;
+
+// Legacy EDC15 namespace for backward compatibility
+namespace EDC15 {
+extern const QString ECU_HEADER;
+extern const QString WAKEUP_MESSAGE;
+extern const QString PROTOCOL;
+extern const int BAUD_RATE;
+extern const int DEFAULT_TIMEOUT;
+extern const int FAST_INIT_TIMEOUT;
+extern const int SECURITY_TIMEOUT;
+
+extern const QString START_COMMUNICATION;
+extern const QString SECURITY_ACCESS_REQUEST;
+extern const QString SECURITY_ACCESS_KEY;
+extern const QString START_DIAGNOSTIC_ROUTINE;
+extern const QString READ_DTC;
+extern const QString CLEAR_DTC;
+
+extern const QString READ_MAF_DATA;
+extern const QString READ_RAIL_PRESSURE_ACTUAL;
+extern const QString READ_RAIL_PRESSURE_SPEC;
+extern const QString READ_MAP_DATA;
+extern const QString READ_MAP_SPEC;
+extern const QString READ_INJECTOR_DATA;
+extern const QString READ_MISC_DATA;
+extern const QString READ_BATTERY_VOLTAGE;
+
+extern const QString RESPONSE_MAF;
+extern const QString RESPONSE_RAIL_PRESSURE;
+extern const QString RESPONSE_RAIL_PRESSURE_SPEC;
+extern const QString RESPONSE_INJECTOR;
+extern const QString RESPONSE_DTC;
+extern const QString RESPONSE_COMMUNICATION;
+extern const QString RESPONSE_SECURITY_ACCESS;
+extern const QString RESPONSE_SECURITY_GRANTED;
+extern const QString RESPONSE_DIAGNOSTIC_ROUTINE;
+
+extern const QStringList ERROR_CODES;
 }
 
 #endif // GLOBAL_H
