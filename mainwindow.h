@@ -24,17 +24,41 @@
 #include <QMessageBox>
 #include <QCoreApplication>
 #include <QMap>
-#include <QTabWidget>
 #include <QProgressBar>
-#include <QTreeWidget>
+#include <QListWidget>
+#include <QFrame>
+#include <QSysInfo>
+#include <QDir>
+#include <QTextStream>
+#include <QFile>
+#include <QThread>
 
 #ifdef Q_OS_ANDROID
+// Qt 6.9 Android includes
+#include <QJniObject>
+#include <QJniEnvironment>
+#include <QtCore/qjniobject.h>
+#include <QtCore/qjnienvironment.h>
+#include <QOpenGLContext>
+#include <QOffscreenSurface>
+#include <QOpenGLFunctions>
+#include <GLES2/gl2.h>
+#include <android/log.h>
+#include <jni.h>
+#endif
+
+
+// Bluetooth permissions (Qt 6.9 style)
 #include <QBluetoothPermission>
 #include <QLocationPermission>
 #include <QPermission>
-#endif
 
 #include "global.h"
+
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 // Forward declarations
 class ELM;
@@ -69,49 +93,17 @@ private slots:
     // Protocol and module management
     void onProtocolSwitchRequested(WJProtocol protocol);
     void onModuleSelectionChanged(int index);
-    void onAutoDetectProtocolClicked();
 
     // Connection management
     void onConnectClicked();
     void onDisconnectClicked();
 
-    // Engine diagnostic commands (ISO_14230_4_KWP_FAST)
-    void onReadEngineMAFClicked();
-    void onReadEngineRailPressureClicked();
-    void onReadEngineMAPClicked();
-    void onReadEngineInjectorCorrectionsClicked();
-    void onReadEngineMiscDataClicked();
-    void onReadEngineBatteryVoltageClicked();
-    void onReadEngineAllSensorsClicked();
-    void onReadEngineFaultCodesClicked();
-    void onClearEngineFaultCodesClicked();
+    // Simplified diagnostic commands - unified for all modules
+    void onReadAllSensorsClicked();
+    void onReadFaultCodesClicked();
+    void onClearFaultCodesClicked();
 
-    // Transmission diagnostic commands (J1850 VPW)
-    void onReadTransmissionDataClicked();
-    void onReadTransmissionSolenoidsClicked();
-    void onReadTransmissionSpeedsClicked();
-    void onReadTransmissionFaultCodesClicked();
-    void onClearTransmissionFaultCodesClicked();
-
-    // PCM diagnostic commands (J1850 VPW)
-    void onReadPCMDataClicked();
-    void onReadPCMFuelTrimClicked();
-    void onReadPCMO2SensorsClicked();
-    void onReadPCMFaultCodesClicked();
-    void onClearPCMFaultCodesClicked();
-
-    // ABS diagnostic commands (J1850 VPW)
-    void onReadABSWheelSpeedsClicked();
-    void onReadABSStabilityDataClicked();
-    void onReadABSFaultCodesClicked();
-    void onClearABSFaultCodesClicked();
-
-    // Multi-module operations
-    void onReadAllModuleFaultCodesClicked();
-    void onClearAllModuleFaultCodesClicked();
-    void onReadAllSensorDataClicked();
-
-    // Manual command sending
+    // Manual command sending (kept for advanced users)
     void onSendCommandClicked();
     void onClearTerminalClicked();
     void onExitClicked();
@@ -130,27 +122,24 @@ private slots:
     void onContinuousReadingToggled(bool enabled);
     void onReadingIntervalChanged(int intervalMs);
 
-    // Tab management
-    void onTabChanged(int index);
-
 private:
-    // UI Setup methods
+    // UI Setup methods - simplified for car stereo
     void setupUI();
-    void setupConnectionTypeControls();
-    void setupConnectionControls();
-    void setupModuleSelection();
-    void setupTabWidget();
-    void setupEngineTab();
-    void setupTransmissionTab();
-    void setupPCMTab();
-    void setupABSTab();
-    void setupMultiModuleTab();
-    void setupTerminalDisplay();
+    void setupLeftPanel();
+    void setupCenterPanel();
+    void setupRightPanel();
     void setupConnections();
-    void applyWJStyling();
+    void applyCarStereoStyling();
+
+    // Helper method for sensor display creation
+    void createSensorDisplay(const QString& name, const QString& defaultValue,
+                             QGridLayout* layout, int row, int col, QLabel*& label);
 
     // Settings initialization
     void initializeSettings();
+
+    // Device information logging
+    void logDeviceInformation();
 
     // Connection type management
     void scanBluetoothDevices();
@@ -163,8 +152,9 @@ private:
     // Protocol and module management
     bool switchToProtocol(WJProtocol protocol);
     bool switchToModule(WJModule module);
-    void updateUIForCurrentModule();
-    void enableDisableControlsForModule(WJModule module, bool enabled);
+    void updateControlsForConnection(bool connected);
+    void updateSensorLayoutForModule(WJModule module);
+    void updateSensorLabelsForModule(WJModule module);
 
     // WJ Communication methods
     bool initializeWJCommunication();
@@ -205,53 +195,59 @@ private:
     void stopContinuousReading();
     void performContinuousRead();
 
-    // Fault code management
+    // Fault code management - simplified
     void displayFaultCodes(const QList<WJ_DTC>& dtcs, const QString& moduleLabel);
     void clearFaultCodesForModule(WJModule module);
 
-private:
-    // UI Components
-    QWidget* centralWidget;
-    QVBoxLayout* mainLayout;
-    QGridLayout* controlsLayout;
-    QHBoxLayout* connectionTypeLayout;
-    QVBoxLayout* connectionLayout;
-    QVBoxLayout* moduleLayout;
+    // Simplified command execution methods
+    void executeEngineCommands();
+    void executeTransmissionCommands();
+    void executePCMCommands();
+    void executeABSCommands();
 
-    // Connection type controls
-    QLabel* connectionTypeLabel;
+private:
+    // Main UI Panels - Car Stereo Layout
+    QWidget* centralWidget;
+    QWidget* leftPanel;      // Connection and controls (300px)
+    QWidget* centerPanel;    // Sensor data display (stretch)
+    QWidget* rightPanel;     // Fault codes and log (360px)
+
+    // Left Panel Components
     QComboBox* connectionTypeCombo;
+    QLabel* connectionStatusLabel;
+    QPushButton* connectButton;
+    QPushButton* disconnectButton;
+    QComboBox* moduleCombo;
+    QLabel* currentModuleLabel;
+    QPushButton* readAllSensorsButton;
+    QPushButton* readFaultCodesButton;
+    QPushButton* clearFaultCodesButton;
+
+    // Connection type controls (Bluetooth)
     QLabel* btDeviceLabel;
     QComboBox* bluetoothDevicesCombo;
     QPushButton* scanBluetoothButton;
     QMap<int, QString> deviceAddressMap;
 
-    // Connection controls
-    QPushButton* connectButton;
-    QPushButton* disconnectButton;
-    QLabel* connectionStatusLabel;
+    // Center Panel Components
+    QLabel* moduleTitle;
     QLabel* protocolLabel;
 
-    // Protocol and module controls
-    QComboBox* moduleCombo;
-    QLabel* currentModuleLabel;
+    // Universal sensor display labels (reused for different modules)
+    QLabel* sensor1Label;    // MAF/Oil Temp/Vehicle Speed/Wheel Speed FL
+    QLabel* sensor2Label;    // MAF Spec/Input Speed/Engine Load/Wheel Speed FR
+    QLabel* sensor3Label;    // Rail Pressure/Output Speed/Fuel Trim ST/Wheel Speed RL
+    QLabel* sensor4Label;    // MAP/Current Gear/Fuel Trim LT/Wheel Speed RR
+    QLabel* sensor5Label;    // Coolant Temp/Line Pressure/O2 Sensor 1/Yaw Rate
+    QLabel* sensor6Label;    // Intake Temp/Solenoid A/O2 Sensor 2/Lateral Accel
+    QLabel* sensor7Label;    // Throttle Pos/Solenoid B/Timing Advance/Reserved
+    QLabel* sensor8Label;    // RPM/TCC Solenoid/Barometric Pressure/Reserved
+    QLabel* sensor9Label;    // Injection Qty/Torque Converter/Reserved/Reserved
+    QLabel* sensor10Label;   // Battery/Reserved/Reserved/Reserved
+    QLabel* sensor11Label;   // Vehicle Speed (from PCM)/Reserved/Reserved/Reserved
+    QLabel* sensor12Label;   // Engine Load (from Engine)/Reserved/Reserved/Reserved
 
-    // Tab widget for different modules
-    QTabWidget* moduleTabWidget;
-
-    // Engine tab (ISO_14230_4_KWP_FAST) controls
-    QWidget* engineTab;
-    QPushButton* readEngineMAFButton;
-    QPushButton* readEngineRailPressureButton;
-    QPushButton* readEngineMAPButton;
-    QPushButton* readEngineInjectorButton;
-    QPushButton* readEngineMiscButton;
-    QPushButton* readEngineBatteryButton;
-    QPushButton* readEngineAllSensorsButton;
-    QPushButton* readEngineFaultCodesButton;
-    QPushButton* clearEngineFaultCodesButton;
-
-    // Engine sensor display labels
+    // Mapped sensor pointers for compatibility
     QLabel* mafActualLabel;
     QLabel* mafSpecifiedLabel;
     QLabel* railPressureActualLabel;
@@ -263,22 +259,12 @@ private:
     QLabel* throttlePositionLabel;
     QLabel* rpmLabel;
     QLabel* injectionQuantityLabel;
+    QLabel* batteryVoltageLabel;
     QLabel* injector1Label;
     QLabel* injector2Label;
     QLabel* injector3Label;
     QLabel* injector4Label;
     QLabel* injector5Label;
-    QLabel* batteryVoltageLabel;
-
-    // Transmission tab (J1850 VPW) controls
-    QWidget* transmissionTab;
-    QPushButton* readTransmissionDataButton;
-    QPushButton* readTransmissionSolenoidsButton;
-    QPushButton* readTransmissionSpeedsButton;
-    QPushButton* readTransmissionFaultCodesButton;
-    QPushButton* clearTransmissionFaultCodesButton;
-
-    // Transmission sensor display labels
     QLabel* transOilTempLabel;
     QLabel* transInputSpeedLabel;
     QLabel* transOutputSpeedLabel;
@@ -288,16 +274,6 @@ private:
     QLabel* transSolenoidBLabel;
     QLabel* transTCCSolenoidLabel;
     QLabel* transTorqueConverterLabel;
-
-    // PCM tab (J1850 VPW) controls
-    QWidget* pcmTab;
-    QPushButton* readPCMDataButton;
-    QPushButton* readPCMFuelTrimButton;
-    QPushButton* readPCMO2SensorsButton;
-    QPushButton* readPCMFaultCodesButton;
-    QPushButton* clearPCMFaultCodesButton;
-
-    // PCM sensor display labels
     QLabel* vehicleSpeedLabel;
     QLabel* engineLoadLabel;
     QLabel* fuelTrimSTLabel;
@@ -306,15 +282,6 @@ private:
     QLabel* o2Sensor2Label;
     QLabel* timingAdvanceLabel;
     QLabel* barometricPressureLabel;
-
-    // ABS tab (J1850 VPW) controls
-    QWidget* absTab;
-    QPushButton* readABSWheelSpeedsButton;
-    QPushButton* readABSStabilityDataButton;
-    QPushButton* readABSFaultCodesButton;
-    QPushButton* clearABSFaultCodesButton;
-
-    // ABS sensor display labels
     QLabel* wheelSpeedFLLabel;
     QLabel* wheelSpeedFRLabel;
     QLabel* wheelSpeedRLLabel;
@@ -322,29 +289,18 @@ private:
     QLabel* yawRateLabel;
     QLabel* lateralAccelLabel;
 
-    // Multi-module tab controls
-    QWidget* multiModuleTab;
-    QPushButton* readAllModuleFaultCodesButton;
-    QPushButton* clearAllModuleFaultCodesButton;
-    QPushButton* readAllSensorDataButton;
-    QTreeWidget* faultCodeTree;
-    QProgressBar* progressBar;
-    QLabel* progressLabel;
+    // Right Panel Components
+    QListWidget* faultCodeList;
+    QCheckBox* continuousReadingCheckBox;
+    QSlider* readingIntervalSlider;
+    QLabel* intervalLabel;
+    QTextBrowser* terminalDisplay;
 
-    // Manual command controls
+    // Advanced/Manual Controls (shown in right panel)
     QLineEdit* commandLineEdit;
     QPushButton* sendCommandButton;
     QPushButton* clearTerminalButton;
     QPushButton* exitButton;
-
-    // Continuous reading controls
-    QCheckBox* continuousReadingCheckBox;
-    QSlider* readingIntervalSlider;
-    QLabel* intervalLabel;
-
-    // Terminal display
-    QTextBrowser* terminalDisplay;
-    QWidget* terminalContainer;
 
     // Core components
     ELM* elm;
@@ -378,6 +334,10 @@ private:
     LogLevel currentLogLevel = LOG_MINIMAL;
     QString dataBuffer;
 
+    // Car stereo specific settings
+    bool showAdvancedControls = false;
+    bool autoRefreshEnabled = false;
+
     // Constants
     static const QString WJ_ECU_HEADER_ENGINE;
     static const QString WJ_ECU_HEADER_TRANS;
@@ -387,6 +347,14 @@ private:
     static const int WJ_INIT_TIMEOUT;
     static const int WJ_PROTOCOL_SWITCH_TIMEOUT;
     static const int WJ_MAX_RETRIES;
+
+    // Car stereo UI constants
+    static const int LEFT_PANEL_WIDTH = 300;
+    static const int RIGHT_PANEL_WIDTH = 360;
+    static const int SENSOR_DISPLAY_WIDTH = 140;
+    static const int SENSOR_DISPLAY_HEIGHT = 100;
+    static const int MIN_BUTTON_HEIGHT = 40;
+    static const int MIN_TOUCH_TARGET = 44; // Minimum touch target size
 };
 
 #endif // MAINWINDOW_H
