@@ -21,7 +21,7 @@ android {
     namespace androidPackageName
     compileSdkVersion 35
     buildToolsVersion "35.0.0"
-    ndkVersion "25.1.8937393"
+    ndkVersion "27.3.13750724"
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
